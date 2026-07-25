@@ -31,7 +31,7 @@
 .app-content { min-width: 0; padding: 26px; color: white; }
 .app-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .app-heading small { color: #5daeff; font-size: .57rem; font-weight: 700; letter-spacing: .15em; }
-.app-heading h2 { margin-top: 4px; font-size: 1.05rem; }
+.app-heading .mockup-title { margin-top: 4px; font-size: 1.05rem; }
 .app-heading button { padding: 8px 11px; border: 0; border-radius: 8px; color: white; background: var(--blue-600); font-size: .61rem; font-weight: 700; }
 .feature-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 22px; }
 .feature-grid article { padding: 14px; border: 1px solid rgba(255,255,255,.08); border-radius: 13px; background: rgba(255,255,255,.035); }
@@ -97,7 +97,7 @@
 .collective-main { padding: 24px; }
 .collective-main header { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
 .collective-main small { color: #2475e9; font-size: .56rem; font-weight: 700; }
-.collective-main h4 { margin-top: 3px; font-size: 1rem; }
+.collective-main .mockup-title { margin-top: 3px; font-size: 1rem; }
 .collective-main button { padding: 8px 11px; border: 0; border-radius: 8px; color: white; background: #0c1d37; font-size: .58rem; }
 .collective-features { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 20px; }
 .collective-features article { padding: 15px; border: 1px solid #e1e8f1; border-radius: 12px; background: white; }
