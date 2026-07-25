@@ -1,0 +1,8 @@
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity .72s cubic-bezier(.2,.8,.2,1), transform .72s cubic-bezier(.2,.8,.2,1); }
+.reveal.is-visible { opacity: 1; transform: translateY(0); }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes softPulse { 0%,100% { opacity: .38; } 50% { opacity: .7; } }
+.floating-note { animation: float 4.8s ease-in-out infinite; }
+.note-two { animation-delay: -2.3s; }
+.demo-glow { animation: softPulse 5.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } .reveal { opacity: 1; transform: none; } }

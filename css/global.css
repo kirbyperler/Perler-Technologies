@@ -1,0 +1,68 @@
+:root {
+  --navy-950: #051225;
+  --navy-900: #081a35;
+  --navy-800: #0d2b53;
+  --blue-600: #1769ff;
+  --blue-500: #2d8cff;
+  --cyan-400: #58d9ff;
+  --white: #ffffff;
+  --surface: #f5f8fc;
+  --surface-strong: #edf3fa;
+  --text: #0c1d37;
+  --muted: #5e6d82;
+  --line: #dce5f0;
+  --max-width: 1200px;
+  --radius-sm: 14px;
+  --radius-md: 22px;
+  --radius-lg: 34px;
+  --shadow-sm: 0 12px 34px rgba(8, 26, 53, .08);
+  --shadow-lg: 0 34px 90px rgba(8, 26, 53, .16);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; scroll-padding-top: 96px; }
+body { min-height: 100vh; overflow-x: hidden; color: var(--text); background: var(--white); font-family: "Inter", sans-serif; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; max-width: 100%; }
+button, input, textarea, select { font: inherit; }
+button { color: inherit; cursor: pointer; }
+.container { width: min(calc(100% - 48px), var(--max-width)); margin-inline: auto; }
+.section { position: relative; padding: 132px 0; }
+.skip-link { position: fixed; left: 16px; top: -80px; z-index: 999; padding: 12px 18px; border-radius: 10px; color: white; background: var(--navy-950); transition: top .2s ease; }
+.skip-link:focus { top: 16px; }
+.section-heading { max-width: 760px; margin-bottom: 58px; }
+.section-heading h2, .quote-card h2 { font-family: "Manrope", sans-serif; font-size: clamp(2.25rem, 4.8vw, 4.5rem); line-height: 1.04; letter-spacing: -.052em; }
+.section-heading > p:last-child { max-width: 680px; margin-top: 20px; color: var(--muted); font-size: 1.08rem; }
+.section-label { margin-bottom: 16px; color: var(--blue-600); font-size: .76rem; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
+
+@media (max-width: 760px) {
+  .container { width: min(calc(100% - 28px), var(--max-width)); }
+  .section { padding: 88px 0; }
+  .section-heading { margin-bottom: 40px; }
+}
+
+/* ---------- Dark theme update ---------- */
+:root {
+  --white: #ffffff;
+  --surface: #081a35;
+  --surface-strong: #0d2b53;
+  --text: #ffffff;
+  --muted: #a8b8ce;
+  --line: rgba(255, 255, 255, .11);
+  --shadow-sm: 0 14px 36px rgba(0, 0, 0, .24);
+  --shadow-lg: 0 38px 100px rgba(0, 0, 0, .34);
+}
+
+body {
+  color: var(--text);
+  background: var(--navy-950);
+}
+
+.section-heading > p:last-child {
+  color: var(--muted);
+}
+
+.skip-link {
+  color: var(--navy-950);
+  background: var(--white);
+}

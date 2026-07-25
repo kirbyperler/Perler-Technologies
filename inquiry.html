@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Tell Perler Technologies about the website or custom software project you want to build.">
+  <meta name="theme-color" content="#051225">
+  <title>Project Inquiry | Perler Technologies</title>
+
+  <link rel="icon" type="image/png" href="images/branding/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/inquiry.css">
+
+  <script src="js/navigation.js" defer></script>
+  <script src="js/animations.js" defer></script>
+  <script src="js/inquiry.js" defer></script>
+  <script src="js/main.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header" id="top">
+    <div class="container nav-container">
+      <a class="brand brand-logo" href="index.html" aria-label="Perler Technologies home">
+        <img src="images/branding/perler-logo-light.png" alt="Perler Technologies">
+      </a>
+
+      <button class="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="primary-nav">
+        <span></span><span></span>
+      </button>
+
+      <nav class="site-nav" id="primary-nav" aria-label="Primary navigation">
+        <a href="index.html#services">Services</a>
+        <a href="index.html#work">Work</a>
+        <a href="index.html#process">Process</a>
+        <a href="index.html#faq">FAQ</a>
+        <a class="nav-button" href="inquiry.html" aria-current="page">Request a quote</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="inquiry-section section">
+      <div class="inquiry-orb inquiry-orb-one" aria-hidden="true"></div>
+      <div class="inquiry-orb inquiry-orb-two" aria-hidden="true"></div>
+
+      <div class="container inquiry-container">
+        <div class="inquiry-heading reveal">
+          <p class="section-label">Project inquiry</p>
+          <h1>Tell us what you want to build.</h1>
+          <p>Share a few details about your project. We will review your inquiry and follow up to discuss the next steps.</p>
+        </div>
+
+        <div class="form-panel reveal">
+          <form id="inquiry-form" novalidate>
+            <div class="form-grid two-column">
+              <div class="field-group">
+                <label for="name">Name <span aria-hidden="true">*</span></label>
+                <input id="name" name="name" type="text" autocomplete="name" required maxlength="120">
+                <small class="field-error" data-error-for="name"></small>
+              </div>
+
+              <div class="field-group">
+                <label for="company">Company <span class="optional">Optional</span></label>
+                <input id="company" name="company" type="text" autocomplete="organization" maxlength="160">
+                <small class="field-error" data-error-for="company"></small>
+              </div>
+
+              <div class="field-group">
+                <label for="email">Email <span aria-hidden="true">*</span></label>
+                <input id="email" name="email" type="email" autocomplete="email" required maxlength="180">
+                <small class="field-error" data-error-for="email"></small>
+              </div>
+
+              <div class="field-group">
+                <label for="phone">Phone <span aria-hidden="true">*</span></label>
+                <input id="phone" name="phone" type="tel" autocomplete="tel" required maxlength="40">
+                <small class="field-error" data-error-for="phone"></small>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label for="project-type">Project type <span aria-hidden="true">*</span></label>
+              <div class="select-wrap">
+                <select id="project-type" name="projectType" required>
+                  <option value="" selected disabled>Select a project type</option>
+                  <option value="Business website">Business website</option>
+                  <option value="Custom web application">Custom web application</option>
+                  <option value="Dashboard or portal">Dashboard or portal</option>
+                  <option value="Automation or integration">Automation or integration</option>
+                  <option value="Existing website or system update">Existing website or system update</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <small class="field-error" data-error-for="projectType"></small>
+            </div>
+
+            <div class="field-group">
+              <label for="project-details">Tell us about your project <span aria-hidden="true">*</span></label>
+              <textarea id="project-details" name="projectDetails" rows="7" required maxlength="5000" placeholder="What do you want to build, and what should it help your business do?"></textarea>
+              <div class="field-meta">
+                <small class="field-error" data-error-for="projectDetails"></small>
+                <small><span id="details-count">0</span>/5000</small>
+              </div>
+            </div>
+
+            <div class="form-grid two-column">
+              <div class="field-group">
+                <label for="timeline">Timeline <span class="optional">Optional</span></label>
+                <input id="timeline" name="timeline" type="text" maxlength="160" placeholder="Example: As soon as possible or within one month">
+                <small class="field-error" data-error-for="timeline"></small>
+              </div>
+
+              <div class="field-group">
+                <label for="reference-links">Reference links <span class="optional">Optional</span></label>
+                <input id="reference-links" name="referenceLinks" type="text" maxlength="1000" placeholder="Links to examples, an existing site, or project notes">
+                <small class="field-error" data-error-for="referenceLinks"></small>
+              </div>
+            </div>
+
+            <div class="form-footer">
+              <p>Fields marked with * are required.</p>
+              <button class="button button-primary submit-button" type="submit">
+                <span class="button-label">Send inquiry</span>
+                <span class="button-arrow" aria-hidden="true">→</span>
+                <span class="button-loader" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="form-status" id="form-status" role="status" aria-live="polite"></div>
+          </form>
+
+          <div class="success-panel" id="success-panel" hidden>
+            <div class="success-icon" aria-hidden="true">✓</div>
+            <p class="section-label">Inquiry received</p>
+            <h2>Thank you for reaching out.</h2>
+            <p>Your inquiry has been received. We will be in touch within 24–48 hours.</p>
+            <a class="button button-secondary" href="index.html">Return home</a>
+          </div>
+        </div>
+
+        <p class="direct-email reveal">Prefer email? Contact <a href="mailto:kirby@perlertechnologies.com">kirby@perlertechnologies.com</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-top">
+      <a class="brand footer-brand" href="index.html" aria-label="Perler Technologies home">
+        <img src="images/branding/perler-logo-light.png" alt="Perler Technologies">
+      </a>
+      <p>Custom software for startups and small businesses.</p>
+      <nav aria-label="Footer navigation">
+        <a href="index.html#services">Services</a>
+        <a href="index.html#work">Work</a>
+        <a href="index.html#process">Process</a>
+        <a href="inquiry.html">Request a quote</a>
+      </nav>
+    </div>
+    <div class="container footer-bottom">
+      <span>© <span id="current-year"></span> Perler Technologies</span>
+      <a href="mailto:kirby@perlertechnologies.com">kirby@perlertechnologies.com</a>
+    </div>
+  </footer>
+</body>
+</html>
