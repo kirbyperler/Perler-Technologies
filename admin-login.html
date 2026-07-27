@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Private admin login for Perler Technologies.">
+  <meta name="theme-color" content="#051225">
+  <title>Admin Login | Perler Technologies</title>
+
+  <link rel="icon" type="image/png" href="images/branding/favicon.png">
+  <link rel="apple-touch-icon" href="images/branding/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/admin-login.css">
+
+  <script src="js/admin-login.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header" id="top">
+    <div class="container nav-container">
+      <a class="brand brand-logo" href="index.html" aria-label="Perler Technologies home">
+        <img src="images/branding/perler-logo-light.png" alt="Perler Technologies">
+      </a>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="admin-login-section section">
+      <div class="inquiry-orb inquiry-orb-one" aria-hidden="true"></div>
+      <div class="inquiry-orb inquiry-orb-two" aria-hidden="true"></div>
+
+      <div class="container admin-login-container">
+        <div class="admin-login-heading">
+          <p class="section-label">Admin</p>
+          <h1>Sign in to the invoice portal.</h1>
+          <p>This area is private and restricted to Perler Technologies administrators.</p>
+        </div>
+
+        <div class="form-panel">
+          <form id="admin-login-form" novalidate>
+            <div class="field-group">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" autocomplete="username" required maxlength="200">
+              <small class="field-error" data-error-for="email"></small>
+            </div>
+
+            <div class="field-group">
+              <label for="password">Password</label>
+              <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128">
+              <small class="field-error" data-error-for="password"></small>
+            </div>
+
+            <div class="form-footer admin-login-footer">
+              <button class="button button-primary submit-button" type="submit">
+                <span class="button-label">Log in</span>
+                <span class="button-loader" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="form-status" id="form-status" role="status" aria-live="polite"></div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

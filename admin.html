@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Private invoice management portal for Perler Technologies.">
+  <meta name="theme-color" content="#051225">
+  <title>Admin | Perler Technologies</title>
+
+  <link rel="icon" type="image/png" href="images/branding/favicon.png">
+  <link rel="apple-touch-icon" href="images/branding/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/admin.css">
+
+  <script src="js/navigation.js" defer></script>
+  <script src="js/admin.js" defer></script>
+</head>
+<body class="admin-body">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header admin-header" id="top">
+    <div class="container nav-container">
+      <a class="brand brand-logo" href="index.html" aria-label="Perler Technologies home">
+        <img src="images/branding/perler-logo-light.png" alt="Perler Technologies">
+      </a>
+
+      <button class="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="admin-nav">
+        <span></span><span></span>
+      </button>
+
+      <nav class="site-nav admin-nav" id="admin-nav" aria-label="Admin navigation">
+        <a href="#/dashboard" data-route="dashboard">Dashboard</a>
+        <a href="#/invoices" data-route="invoices">Invoices</a>
+        <a href="#/invoices/new" data-route="create">Create Invoice</a>
+        <button class="nav-button" type="button" id="logout-button">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content" class="admin-main">
+    <div class="container admin-container">
+
+      <section class="admin-view" id="view-dashboard" data-view="dashboard" hidden>
+        <div class="admin-view-heading">
+          <p class="section-label">Overview</p>
+          <h1>Dashboard</h1>
+        </div>
+
+        <div class="stat-grid" id="dashboard-stats" aria-live="polite"></div>
+
+        <div class="admin-panel">
+          <div class="panel-heading">
+            <h2>Recent invoices</h2>
+            <a class="text-link" href="#/invoices">View all <span aria-hidden="true">→</span></a>
+          </div>
+          <div id="dashboard-recent"></div>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-invoices" data-view="invoices" hidden>
+        <div class="admin-view-heading">
+          <p class="section-label">Billing</p>
+          <h1>Invoices</h1>
+        </div>
+
+        <div class="invoice-toolbar">
+          <div class="field-group toolbar-search">
+            <label for="invoice-search">Search</label>
+            <input id="invoice-search" type="search" placeholder="Invoice, client, business, or project" maxlength="100">
+          </div>
+          <div class="field-group">
+            <label for="invoice-status-filter">Status</label>
+            <div class="select-wrap">
+              <select id="invoice-status-filter">
+                <option value="">All statuses</option>
+                <option value="Draft">Draft</option>
+                <option value="Pending">Pending</option>
+                <option value="Overdue">Overdue</option>
+                <option value="Paid">Paid</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="invoice-sort">Sort by</label>
+            <div class="select-wrap">
+              <select id="invoice-sort">
+                <option value="newest">Newest</option>
+                <option value="dueDate">Due date</option>
+                <option value="amount">Amount</option>
+                <option value="invoiceNumber">Invoice number</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-panel" id="invoices-panel"></div>
+      </section>
+
+      <section class="admin-view" id="view-create" data-view="create" hidden>
+        <div class="admin-view-heading">
+          <p class="section-label">New invoice</p>
+          <h1>Create invoice</h1>
+        </div>
+
+        <div class="admin-panel">
+          <form id="create-invoice-form" class="admin-form" novalidate>
+            <div class="form-grid two-column">
+              <div class="field-group">
+                <label for="clientName">Client name <span aria-hidden="true">*</span></label>
+                <input id="clientName" name="clientName" type="text" required maxlength="200">
+                <small class="field-error" data-error-for="clientName"></small>
+              </div>
+              <div class="field-group">
+                <label for="clientEmail">Client email <span aria-hidden="true">*</span></label>
+                <input id="clientEmail" name="clientEmail" type="email" required maxlength="200">
+                <small class="field-error" data-error-for="clientEmail"></small>
+              </div>
+              <div class="field-group">
+                <label for="businessName">Business name <span class="optional">Optional</span></label>
+                <input id="businessName" name="businessName" type="text" maxlength="200">
+                <small class="field-error" data-error-for="businessName"></small>
+              </div>
+              <div class="field-group">
+                <label for="projectName">Project name <span aria-hidden="true">*</span></label>
+                <input id="projectName" name="projectName" type="text" required maxlength="200">
+                <small class="field-error" data-error-for="projectName"></small>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label for="description">Description <span aria-hidden="true">*</span></label>
+              <textarea id="description" name="description" rows="4" required maxlength="2000" placeholder="Example: 50% project deposit"></textarea>
+              <small class="field-error" data-error-for="description"></small>
+            </div>
+
+            <div class="form-grid two-column">
+              <div class="field-group">
+                <label for="amount">Amount (USD) <span aria-hidden="true">*</span></label>
+                <input id="amount" name="amount" type="text" inputmode="decimal" required placeholder="1500.00" maxlength="20">
+                <small class="field-error" data-error-for="amount"></small>
+              </div>
+              <div class="field-group">
+                <label for="paymentType">Payment type <span aria-hidden="true">*</span></label>
+                <div class="select-wrap">
+                  <select id="paymentType" name="paymentType" required>
+                    <option value="" selected disabled>Select a payment type</option>
+                    <option value="Deposit">Deposit</option>
+                    <option value="Milestone">Milestone</option>
+                    <option value="Final payment">Final payment</option>
+                    <option value="Hosting">Hosting</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <small class="field-error" data-error-for="paymentType"></small>
+              </div>
+            </div>
+
+            <div class="form-grid two-column">
+              <div class="field-group">
+                <label for="dueDate">Due date <span aria-hidden="true">*</span></label>
+                <input id="dueDate" name="dueDate" type="date" required>
+                <small class="field-error" data-error-for="dueDate"></small>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label for="internalNotes">Internal notes <span class="optional">Optional, admin-only</span></label>
+              <textarea id="internalNotes" name="internalNotes" rows="3" maxlength="5000"></textarea>
+              <small class="field-error" data-error-for="internalNotes"></small>
+            </div>
+
+            <div class="form-footer">
+              <p>Fields marked with * are required.</p>
+              <button class="button button-primary submit-button" type="submit">
+                <span class="button-label">Create invoice</span>
+                <span class="button-loader" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="form-status" id="create-status" role="status" aria-live="polite"></div>
+          </form>
+
+          <div class="success-panel" id="create-success" hidden>
+            <div class="success-icon" aria-hidden="true">✓</div>
+            <p class="section-label">Invoice created</p>
+            <h2 id="created-invoice-number"></h2>
+            <div class="invoice-summary" id="created-invoice-summary"></div>
+            <div class="payment-link-row">
+              <input type="text" id="created-payment-link" readonly aria-label="Private payment link">
+              <button class="button button-secondary" type="button" id="copy-created-link">Copy link</button>
+            </div>
+            <div class="success-actions">
+              <a class="button button-primary" href="#" id="view-created-invoice">View invoice</a>
+              <a class="button button-secondary" href="#/invoices/new" id="create-another">Create another</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-detail" data-view="detail" hidden>
+        <div class="admin-view-heading">
+          <a class="text-link" href="#/invoices">← Back to invoices</a>
+        </div>
+        <div class="admin-panel" id="invoice-detail-panel"></div>
+      </section>
+
+    </div>
+  </main>
+</body>
+</html>

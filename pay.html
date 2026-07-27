@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="View and pay your Perler Technologies invoice.">
+  <meta name="theme-color" content="#051225">
+  <title>Secure Invoice | Perler Technologies</title>
+
+  <link rel="icon" type="image/png" href="/images/branding/favicon.png">
+  <link rel="apple-touch-icon" href="images/branding/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/pay.css">
+
+  <script src="/js/main.js" defer></script>
+  <script src="/js/pay.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header" id="top">
+    <div class="container nav-container">
+      <a class="brand brand-logo" href="index.html" aria-label="Perler Technologies home">
+        <img src="/images/branding/perler-logo-light.png" alt="Perler Technologies">
+      </a>
+      <p class="pay-header-tag">Secure Invoice</p>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="pay-section section">
+      <div class="inquiry-orb inquiry-orb-one" aria-hidden="true"></div>
+      <div class="inquiry-orb inquiry-orb-two" aria-hidden="true"></div>
+
+      <div class="container pay-container">
+
+        <div class="pay-state" id="state-loading" role="status" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>Loading your invoice…</p>
+        </div>
+
+        <div class="pay-state" id="state-error" role="alert" hidden>
+          <p class="section-label">Something went wrong</p>
+          <h1>We couldn't load this invoice.</h1>
+          <p>Please check your connection and try again. If the problem continues, contact <a href="mailto:kirby@perlertechnologies.com">kirby@perlertechnologies.com</a>.</p>
+        </div>
+
+        <div class="pay-state" id="state-notfound" role="alert" hidden>
+          <p class="section-label">Invoice not found</p>
+          <h1>This payment link is invalid or no longer available.</h1>
+          <p>Please contact Perler Technologies if you believe this is an error, at <a href="mailto:kirby@perlertechnologies.com">kirby@perlertechnologies.com</a>.</p>
+        </div>
+
+        <div class="invoice-card" id="state-invoice" hidden>
+          <div class="payment-banner" id="payment-banner" role="status" aria-live="polite" hidden></div>
+
+          <div class="invoice-card-header">
+            <div>
+              <p class="section-label">Invoice</p>
+              <h1 id="invoice-heading">Invoice</h1>
+            </div>
+            <span class="status-badge" id="invoice-status-badge"></span>
+          </div>
+
+          <dl class="invoice-details">
+            <div class="detail-row">
+              <dt>Client</dt>
+              <dd id="detail-client"></dd>
+            </div>
+            <div class="detail-row" id="row-business" hidden>
+              <dt>Business</dt>
+              <dd id="detail-business"></dd>
+            </div>
+            <div class="detail-row">
+              <dt>Project</dt>
+              <dd id="detail-project"></dd>
+            </div>
+            <div class="detail-row">
+              <dt>Description</dt>
+              <dd id="detail-description"></dd>
+            </div>
+            <div class="detail-row">
+              <dt>Payment type</dt>
+              <dd id="detail-payment-type"></dd>
+            </div>
+          </dl>
+
+          <div class="invoice-summary-grid">
+            <div class="summary-item">
+              <span>Amount</span>
+              <strong id="detail-amount"></strong>
+            </div>
+            <div class="summary-item">
+              <span>Due date</span>
+              <strong id="detail-due-date"></strong>
+            </div>
+            <div class="summary-item">
+              <span>Invoice date</span>
+              <strong id="detail-created-date"></strong>
+            </div>
+          </div>
+
+          <div class="payment-area" id="payment-area" aria-live="polite"></div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer pay-footer">
+    <div class="container footer-bottom">
+      <span>© <span id="current-year"></span> Perler Technologies</span>
+      <a href="mailto:kirby@perlertechnologies.com">kirby@perlertechnologies.com</a>
+    </div>
+  </footer>
+</body>
+</html>
