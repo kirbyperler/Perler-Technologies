@@ -55,6 +55,35 @@
     return { id: newId(), title: 'New Section', description: '', questions: [], conditionalLogic: null };
   }
 
+  // `doc` is the single source of truth for the whole questionnaire, including
+  // title/description -- the inputs below only ever *display* doc.title/doc.description
+  // (see renderBuilder()) and write back into them here. They live outside
+  // #builder-sections and are never destroyed/recreated (unlike section/question
+  // cards), so their listeners are bound once, right here, instead of inside
+  // bindFieldListeners() which reruns on every render.
+  //
+  // Root cause this fixes: previously nothing ever wrote the typed title/description
+  // back into `doc`, so the *next* renderBuilder() call (triggered by adding a
+  // section, editing a question, etc.) reset the inputs back to the stale doc.title/
+  // doc.description, silently discarding whatever had just been typed.
+  document.getElementById('builder-title')?.addEventListener('input', event => {
+    if (!doc) return;
+    doc.title = event.target.value;
+    markUnsaved();
+  });
+  document.getElementById('builder-description')?.addEventListener('input', event => {
+    if (!doc) return;
+    doc.description = event.target.value;
+    markUnsaved();
+  });
+
+  // Only assigns .value when it actually differs, so a renderBuilder() triggered by
+  // an unrelated edit (e.g. adding a section) never resets the caret position in a
+  // field the admin isn't touching.
+  function setValueIfChanged(el, value) {
+    if (el && el.value !== value) el.value = value;
+  }
+
   // ---------- Loading ----------
 
   window.loadQuestionnaireBuilder = async function loadQuestionnaireBuilder(kind, id) {
@@ -106,6 +135,14 @@
       });
     });
     return list;
+  }
+
+  function findQuestionById(id) {
+    for (const section of doc.sections) {
+      const found = section.questions.find(q => q.id === id);
+      if (found) return found;
+    }
+    return null;
   }
 
   // Drops any conditionalLogic whose source question no longer exists / no longer
@@ -161,9 +198,9 @@
     const candidates = flattenedEarlierQuestions(sectionIdx, questionIdx);
 
     return `
-      <div class="question-card" draggable="${!locked}" data-drag-type="question" ${path}>
+      <div class="question-card" draggable="false" data-drag-type="question" ${path}>
         <div class="question-card-top">
-          <button class="drag-handle" type="button" aria-label="Drag to reorder question" ${locked ? 'disabled' : ''}>⠿</button>
+          <button class="drag-handle" type="button" draggable="${!locked}" aria-label="Drag to reorder question" ${locked ? 'disabled' : ''}>⠿</button>
           <div class="question-card-main">
             <div class="question-type-row">
               <input type="text" ${path} data-field="label" placeholder="${isLayout ? (question.type === 'heading' ? 'Heading text' : 'Section divider label (optional)') : 'Question label'}" value="${escapeHtml(question.label)}" ${locked ? 'disabled' : ''}>
@@ -218,9 +255,9 @@
     const locked = isContentLocked();
     const candidates = flattenedEarlierQuestions(sectionIdx, 0);
     return `
-      <div class="section-card" draggable="${!locked}" data-drag-type="section" data-section-idx="${sectionIdx}">
+      <div class="section-card" draggable="false" data-drag-type="section" data-section-idx="${sectionIdx}">
         <div class="section-card-header">
-          <button class="drag-handle" type="button" aria-label="Drag to reorder section" ${locked ? 'disabled' : ''}>⠿</button>
+          <button class="drag-handle" type="button" draggable="${!locked}" aria-label="Drag to reorder section" ${locked ? 'disabled' : ''}>⠿</button>
           <div class="section-card-fields">
             <input type="text" class="section-title-input" data-section-idx="${sectionIdx}" data-field="title" placeholder="Section title" value="${escapeHtml(section.title)}" ${locked ? 'disabled' : ''}>
             <input type="text" data-section-idx="${sectionIdx}" data-field="description" placeholder="Optional section description" value="${escapeHtml(section.description || '')}" ${locked ? 'disabled' : ''}>
@@ -246,9 +283,9 @@
   function renderBuilder() {
     cleanConditionalLogic();
 
-    document.getElementById('builder-title').value = doc.title || '';
+    setValueIfChanged(document.getElementById('builder-title'), doc.title || '');
     document.getElementById('builder-title').disabled = isContentLocked();
-    document.getElementById('builder-description').value = doc.description || '';
+    setValueIfChanged(document.getElementById('builder-description'), doc.description || '');
     document.getElementById('builder-description').disabled = isContentLocked();
 
     const notice = document.getElementById('builder-lock-notice');
@@ -306,10 +343,25 @@
           : doc.sections[Number(el.dataset.sectionIdx)].questions[Number(el.dataset.questionIdx)];
         const box = el.closest('.conditional-box');
         const questionId = box.querySelector('[data-cond-field="questionId"]').value;
-        if (!questionId) { target.conditionalLogic = null; }
-        else {
-          const operator = box.querySelector('[data-cond-field="operator"]')?.value || 'equals';
-          const value = box.querySelector('[data-cond-field="value"]')?.value || '';
+        if (!questionId) {
+          target.conditionalLogic = null;
+        } else {
+          const sourceQuestion = findQuestionById(questionId);
+          let operator = box.querySelector('[data-cond-field="operator"]')?.value || 'equals';
+          // "includes" only ever makes sense against a checkboxes source -- if the
+          // source question just changed to something else, fall back to "equals"
+          // rather than silently keeping an operator the value control no longer offers.
+          if (operator === 'includes' && sourceQuestion?.type !== 'checkboxes') operator = 'equals';
+
+          let value = box.querySelector('[data-cond-field="value"]')?.value || '';
+          // Root cause of "conditions don't actually work": picking a source question
+          // used to leave value as '' (the value control had just re-rendered as a
+          // dropdown with nothing selected yet), which saved a condition that could
+          // never match a real answer. Default to a real, matchable value immediately.
+          if (!value) {
+            if (sourceQuestion?.type === 'yes_no') value = 'Yes';
+            else if (sourceQuestion?.options?.length) value = sourceQuestion.options[0].label;
+          }
           target.conditionalLogic = { questionId, operator, value };
         }
         markUnsaved();
@@ -326,41 +378,52 @@
   }
 
   // ---------- Drag and drop (native HTML5 DnD; Move Up/Down buttons above are the
-  // accessible / keyboard-operable equivalent for the exact same reordering). ----------
+  // accessible / keyboard-operable equivalent for the exact same reordering).
+  //
+  // draggable="true" lives ONLY on the small drag-handle button, never on the card
+  // itself. Root cause of a real bug this avoids: a draggable="true" ancestor
+  // intercepts the mousedown+move gesture for its whole subtree in most browsers, so
+  // when the card itself was draggable, none of its nested text inputs/textareas
+  // could be text-selected by click-dragging (clicking to place the cursor still
+  // worked; drag-to-highlight did not). The card stays the drop *target* (dragover/
+  // drop listeners), which any element can be regardless of its own draggable value.
+  // ----------
 
   function bindDragAndDrop() {
     const container = document.getElementById('builder-sections');
     let dragged = null;
 
-    container.querySelectorAll('[draggable="true"][data-drag-type="section"]').forEach(el => {
-      el.addEventListener('dragstart', () => { dragged = { type: 'section', idx: Number(el.dataset.sectionIdx) }; });
-      el.addEventListener('dragover', event => { event.preventDefault(); if (dragged?.type === 'section') el.classList.add('drag-over'); });
-      el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
-      el.addEventListener('drop', event => {
+    container.querySelectorAll('.section-card').forEach(card => {
+      const handle = card.querySelector(':scope > .section-card-header > .drag-handle');
+      handle?.addEventListener('dragstart', () => { dragged = { type: 'section', idx: Number(card.dataset.sectionIdx) }; });
+      card.addEventListener('dragover', event => { event.preventDefault(); if (dragged?.type === 'section') card.classList.add('drag-over'); });
+      card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+      card.addEventListener('drop', event => {
         event.preventDefault();
-        el.classList.remove('drag-over');
+        card.classList.remove('drag-over');
         if (dragged?.type !== 'section') return;
-        const target = Number(el.dataset.sectionIdx);
+        const target = Number(card.dataset.sectionIdx);
         const [moved] = doc.sections.splice(dragged.idx, 1);
         doc.sections.splice(target, 0, moved);
         markUnsaved(); renderBuilder();
       });
     });
 
-    container.querySelectorAll('[draggable="true"][data-drag-type="question"]').forEach(el => {
-      el.addEventListener('dragstart', event => {
+    container.querySelectorAll('.question-card').forEach(card => {
+      const handle = card.querySelector(':scope > .question-card-top > .drag-handle');
+      handle?.addEventListener('dragstart', event => {
         event.stopPropagation();
-        dragged = { type: 'question', sectionIdx: Number(el.dataset.sectionIdx), idx: Number(el.dataset.questionIdx) };
+        dragged = { type: 'question', sectionIdx: Number(card.dataset.sectionIdx), idx: Number(card.dataset.questionIdx) };
       });
-      el.addEventListener('dragover', event => { event.preventDefault(); event.stopPropagation(); if (dragged?.type === 'question') el.classList.add('drag-over'); });
-      el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
-      el.addEventListener('drop', event => {
+      card.addEventListener('dragover', event => { event.preventDefault(); event.stopPropagation(); if (dragged?.type === 'question') card.classList.add('drag-over'); });
+      card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+      card.addEventListener('drop', event => {
         event.preventDefault();
         event.stopPropagation();
-        el.classList.remove('drag-over');
+        card.classList.remove('drag-over');
         if (dragged?.type !== 'question') return;
-        const targetSectionIdx = Number(el.dataset.sectionIdx);
-        const targetIdx = Number(el.dataset.questionIdx);
+        const targetSectionIdx = Number(card.dataset.sectionIdx);
+        const targetIdx = Number(card.dataset.questionIdx);
         const [moved] = doc.sections[dragged.sectionIdx].questions.splice(dragged.idx, 1);
         doc.sections[targetSectionIdx].questions.splice(targetIdx, 0, moved);
         markUnsaved(); renderBuilder();
@@ -469,10 +532,12 @@
   window.builderHasUnsavedChanges = () => hasUnsavedChanges;
   window.currentBuilderId = () => builderId;
 
+  // Reads from `doc` (the single source of truth), not the DOM -- title/description
+  // are kept in sync with doc via the one-time listeners bound above.
   function buildContentPayload() {
     return {
-      title: document.getElementById('builder-title').value.trim(),
-      description: document.getElementById('builder-description').value.trim(),
+      title: (doc.title || '').trim(),
+      description: (doc.description || '').trim(),
       sections: doc.sections
     };
   }
@@ -561,7 +626,7 @@
   // ---------- Preview ----------
 
   window.openBuilderPreview = function openBuilderPreview() {
-    const previewDoc = { title: document.getElementById('builder-title').value, description: document.getElementById('builder-description').value, sections: doc.sections };
+    const previewDoc = { title: doc.title || '', description: doc.description || '', sections: doc.sections };
     openModalWithNode('Preview', 'preview-modal-card', { wide: true });
     const body = document.getElementById('preview-modal-body');
     R().renderQuestionnaireRunner(body, previewDoc, {

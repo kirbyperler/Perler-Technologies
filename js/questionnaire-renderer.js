@@ -181,6 +181,36 @@
       return idx === -1 ? 0 : idx;
     }
 
+    function updateProgressBar() {
+      const fill = container.querySelector('.preview-progress-fill');
+      if (fill) fill.style.width = `${computeCompletionPercentage(sections, answers)}%`;
+    }
+
+    // Toggles which already-rendered question nodes are hidden, without rebuilding
+    // any DOM -- so a condition becoming newly true/false reacts immediately (root
+    // cause fix for "visibility doesn't update until Next/Back") without stealing
+    // focus from whatever field the respondent is currently typing in. Every
+    // question in the section is always present in the DOM (see render() below);
+    // only its `hidden` attribute changes here.
+    function refreshVisibility(questionsList) {
+      const { visibleQuestionIds } = computeVisibility(sections, answers);
+      questionsList.forEach(question => {
+        const node = container.querySelector(`[data-question-id="${question.id}"]`);
+        if (node) node.hidden = !visibleQuestionIds.has(question.id);
+      });
+      updateProgressBar();
+    }
+
+    function syncSection(questionsList) {
+      questionsList.forEach(question => {
+        if (LAYOUT_TYPES.includes(question.type)) return;
+        const value = readFieldValue(question, container);
+        answers = { ...answers, [question.id]: value };
+      });
+      config.onAnswerChange?.(answers, computeCompletionPercentage(sections, answers));
+      refreshVisibility(questionsList);
+    }
+
     function render() {
       const list = visibleSections();
       if (!list.length) {
@@ -194,13 +224,17 @@
 
       const { visibleQuestionIds } = computeVisibility(sections, answers);
       const percent = computeCompletionPercentage(sections, answers);
-      const questions = (section.questions || []).filter(q => visibleQuestionIds.has(q.id));
+      // Every question is rendered (not just currently-visible ones) so
+      // refreshVisibility() can reveal/hide them by toggling `hidden` instead of
+      // needing to rebuild the section's HTML on every keystroke.
+      const allQuestions = section.questions || [];
 
-      const questionsHtml = questions.map(question => {
-        if (question.type === 'heading') return `<p class="preview-heading">${escapeHtml(question.label)}</p>`;
-        if (question.type === 'section_divider') return `<div class="preview-divider"></div>`;
+      const questionsHtml = allQuestions.map(question => {
+        const hiddenAttr = visibleQuestionIds.has(question.id) ? '' : 'hidden';
+        if (question.type === 'heading') return `<p class="preview-heading" data-question-id="${question.id}" ${hiddenAttr}>${escapeHtml(question.label)}</p>`;
+        if (question.type === 'section_divider') return `<div class="preview-divider" data-question-id="${question.id}" ${hiddenAttr}></div>`;
         return `
-          <div class="preview-question" data-question-id="${question.id}">
+          <div class="preview-question" data-question-id="${question.id}" ${hiddenAttr}>
             <label>${escapeHtml(question.label)}${question.required ? ' *' : ''}</label>
             ${question.helperText ? `<p class="field-hint">${escapeHtml(question.helperText)}</p>` : ''}
             ${fieldHtml(question, answers[question.id], Boolean(config.readOnly))}
@@ -223,15 +257,16 @@
       `;
 
       container.querySelectorAll('[data-answer-field]').forEach(el => {
-        el.addEventListener('input', () => syncSection(questions));
-        el.addEventListener('change', () => syncSection(questions));
+        el.addEventListener('input', () => syncSection(allQuestions));
+        el.addEventListener('change', () => syncSection(allQuestions));
       });
       container.querySelectorAll('.preview-rating-option').forEach(button => {
         button.addEventListener('click', () => {
           const questionId = button.closest('.preview-question').dataset.questionId;
           answers = { ...answers, [questionId]: Number(button.dataset.ratingValue) };
+          button.parentElement.querySelectorAll('.preview-rating-option').forEach(b => b.classList.toggle('selected', b === button));
           config.onAnswerChange?.(answers, computeCompletionPercentage(sections, answers));
-          render();
+          refreshVisibility(allQuestions);
         });
       });
 
@@ -239,7 +274,8 @@
         if (index > 0) { currentSectionId = list[index - 1].id; config.onSectionChange?.(currentSectionId); render(); }
       });
       document.getElementById('preview-next-button')?.addEventListener('click', () => {
-        const missing = questions.filter(q => !LAYOUT_TYPES.includes(q.type) && q.required && !hasAnswer(q, answers[q.id]));
+        const { visibleQuestionIds: currentlyVisible } = computeVisibility(sections, answers);
+        const missing = allQuestions.filter(q => currentlyVisible.has(q.id) && !LAYOUT_TYPES.includes(q.type) && q.required && !hasAnswer(q, answers[q.id]));
         container.querySelectorAll('[data-error-for]').forEach(el => el.classList.add('hidden'));
         if (missing.length) {
           missing.forEach(q => {
@@ -257,15 +293,6 @@
         config.onSectionChange?.(currentSectionId);
         render();
       });
-    }
-
-    function syncSection(questions) {
-      questions.forEach(question => {
-        if (LAYOUT_TYPES.includes(question.type)) return;
-        const value = readFieldValue(question, container);
-        answers = { ...answers, [question.id]: value };
-      });
-      config.onAnswerChange?.(answers, computeCompletionPercentage(sections, answers));
     }
 
     render();

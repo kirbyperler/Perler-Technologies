@@ -271,6 +271,13 @@
     dom: { debounced, copyToClipboard }
   };
 
+  // admin.html's modal close ("x") button calls closeModal() directly as a bare
+  // global (inline onclick="" runs in global scope, not inside this IIFE), so it
+  // needs a real window.closeModal in addition to PerlerAdmin.ui.closeModal -- this
+  // was missing after the namespace consolidation, which silently broke every
+  // modal's close button (including Preview's).
+  window.closeModal = closeModal;
+
   // ---------- Dashboard ----------
 
   async function loadDashboard() {

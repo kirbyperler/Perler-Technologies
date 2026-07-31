@@ -59,6 +59,98 @@
   margin-bottom: 32px;
 }
 
+/* ---------- Form controls ----------
+   The builder's section/question/option/conditional-logic fields are plain
+   <input>/<select>/<textarea> elements, not wrapped in a .field-group (that would
+   mean a wrapper <div> per field, which the compact card layout doesn't have room
+   for). Root cause of "form controls have no styling": admin.css's input styling
+   only ever targets ".field-group input" etc, so these fields were rendering with
+   bare, unstyled browser defaults. This block gives them the exact same recipe
+   (colors, radius, focus ring) as .field-group's, scoped to #builder-sections and
+   the conditional-logic box so nothing outside the builder is affected. */
+
+#builder-sections input[type="text"],
+#builder-sections input[type="number"],
+#builder-sections input[type="date"],
+#builder-sections textarea,
+#builder-sections select {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 11px;
+  outline: none;
+  color: var(--white);
+  background: rgba(5, 18, 37, .55);
+  font: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+#builder-sections input[type="text"],
+#builder-sections input[type="number"],
+#builder-sections input[type="date"],
+#builder-sections select {
+  min-height: 44px;
+  padding: 0 13px;
+}
+
+#builder-sections textarea {
+  padding: 11px 13px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+#builder-sections select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+
+#builder-sections select option {
+  color: var(--white);
+  background: var(--navy-900);
+}
+
+#builder-sections input:hover,
+#builder-sections select:hover,
+#builder-sections textarea:hover {
+  border-color: rgba(255, 255, 255, .28);
+}
+
+#builder-sections input:focus,
+#builder-sections select:focus,
+#builder-sections textarea:focus {
+  border-color: var(--blue-500);
+  background: rgba(5, 18, 37, .82);
+  box-shadow: 0 0 0 4px rgba(45, 140, 255, .16);
+}
+
+#builder-sections input:disabled,
+#builder-sections select:disabled,
+#builder-sections textarea:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* The Question Type <select> sits in a 2-column row next to the label input. Fix
+   for "Type dropdown overlaps nearby controls": an unstyled/auto-width <select>'s
+   closed box sizes to its longest current option text, and CSS Grid items don't
+   shrink below their content's natural width unless min-width is reset -- so the
+   select could grow wider than its column and overlap the label field or the
+   icon-button toolbar. Giving it a bounded column width (instead of `auto`) plus
+   min-width: 0 on its wrapper fixes this by construction; text-overflow above
+   ellipsizes a long option label instead of forcing the box wider. */
+.question-type-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(150px, 200px);
+  gap: 10px;
+  align-items: center;
+}
+
+.question-type-row .select-wrap {
+  min-width: 0;
+}
+
 /* ---------- Builder shell ---------- */
 
 .builder-header {
@@ -124,13 +216,18 @@
 
 .builder-sections {
   display: grid;
-  gap: 18px;
+  gap: 24px;
 }
 
+/* var(--surface-strong) rather than var(--surface) -- the card's parent
+   (.admin-panel) already uses --surface, so section cards previously had zero
+   background contrast against their own container and were only distinguishable by
+   a 1px, 11%-opacity border. */
 .section-card {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: var(--surface);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -143,7 +240,8 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 18px 20px;
+  padding: 20px 22px;
+  background: rgba(255, 255, 255, .03);
   border-bottom: 1px solid var(--line);
 }
 
@@ -172,7 +270,7 @@
 
 .section-title-input {
   font-family: "Manrope", sans-serif;
-  font-size: 1.05rem !important;
+  font-size: 1.2rem !important;
   font-weight: 700;
 }
 
@@ -201,9 +299,9 @@
 }
 
 .section-card-body {
-  padding: 16px 20px 20px;
+  padding: 20px 22px 22px;
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .section-conditional-summary {
@@ -213,9 +311,9 @@
 /* ---------- Question cards ---------- */
 
 .question-card {
-  border: 1px solid var(--line);
+  border: 1px solid rgba(255, 255, 255, .13);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, .02);
+  background: rgba(255, 255, 255, .05);
   padding: 16px;
   display: grid;
   gap: 12px;
@@ -244,13 +342,6 @@
   flex-shrink: 0;
   gap: 6px;
   flex-wrap: wrap;
-}
-
-.question-type-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
 }
 
 .required-toggle {
