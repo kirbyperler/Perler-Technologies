@@ -74,9 +74,10 @@ async function advanceProjectDiscoveryStatus(db, projectId, newStatus) {
   await db.collection('projects').updateOne({ _id: projectId }, { $set: { discoveryStatus: newStatus, updatedAt: new Date() } });
 }
 
-function toListItem(questionnaire, now, clientById, projectById) {
+function toListItem(questionnaire, now, clientById, projectById, templateById) {
   const client = clientById.get(String(questionnaire.clientId));
   const project = projectById.get(String(questionnaire.projectId));
+  const sourceTemplate = templateById.get(String(questionnaire.sourceTemplateId));
   return {
     id: String(questionnaire._id),
     title: questionnaire.title,
@@ -86,6 +87,7 @@ function toListItem(questionnaire, now, clientById, projectById) {
     projectId: questionnaire.projectId ? String(questionnaire.projectId) : null,
     projectName: project?.name || null,
     sourceTemplateId: questionnaire.sourceTemplateId ? String(questionnaire.sourceTemplateId) : null,
+    sourceTemplateTitle: sourceTemplate?.title || null,
     sentAt: questionnaire.sentAt,
     lastEmailSentAt: questionnaire.lastEmailSentAt,
     progress: questionnaire.progress || EMPTY_PROGRESS,
@@ -134,14 +136,15 @@ async function resolveAttachments(db, body) {
   return { clientId, projectId, linkedInvoiceId };
 }
 
-// Shared by list() and dashboard(): batch-fetches client/project names for a set of
-// questionnaires (avoids an N+1 lookup per row).
+// Shared by list() and dashboard(): batch-fetches client/project/source-template names
+// for a set of questionnaires (avoids an N+1 lookup per row).
 async function joinClientProjectNames(db, questionnaires) {
-  const [clientById, projectById] = await Promise.all([
+  const [clientById, projectById, templateById] = await Promise.all([
     batchFetchByIds(db, 'clients', questionnaires.map(q => q.clientId), { name: 1 }),
-    batchFetchByIds(db, 'projects', questionnaires.map(q => q.projectId), { name: 1 })
+    batchFetchByIds(db, 'projects', questionnaires.map(q => q.projectId), { name: 1 }),
+    batchFetchByIds(db, 'questionnaireTemplates', questionnaires.map(q => q.sourceTemplateId), { title: 1 })
   ]);
-  return { clientById, projectById };
+  return { clientById, projectById, templateById };
 }
 
 async function list(req, res, db) {
@@ -168,7 +171,7 @@ async function list(req, res, db) {
   // depends on the *derived* Expired status) and pagination stay consistent --
   // mirrors invoices.js's list(), which does the same status-filter-after-fetch.
   const questionnaires = await db.collection('questionnaires').find(filter).sort(sort).limit(2000).toArray();
-  const { clientById, projectById } = await joinClientProjectNames(db, questionnaires);
+  const { clientById, projectById, templateById } = await joinClientProjectNames(db, questionnaires);
 
   // Search matches title OR the joined client/project name -- there's no stored
   // client/project name field on the questionnaire to $regex directly against.
@@ -183,7 +186,7 @@ async function list(req, res, db) {
   const statusFilter = clean(req.query?.status, 100).split(',').map(s => s.trim()).filter(Boolean);
 
   let items = questionnaires
-    .map(q => toListItem(q, now, clientById, projectById))
+    .map(q => toListItem(q, now, clientById, projectById, templateById))
     .filter(item => !statusFilter.length || statusFilter.includes(item.status))
     .filter(matchesSearch);
 
@@ -205,7 +208,7 @@ async function dashboard(req, res, db) {
     db.collection('questionnaireTemplates').countDocuments({}),
     db.collection('questionnaires').find({}, { projection: { sections: 0 } }).sort({ createdAt: -1 }).limit(2000).toArray()
   ]);
-  const { clientById, projectById } = await joinClientProjectNames(db, questionnaires);
+  const { clientById, projectById, templateById } = await joinClientProjectNames(db, questionnaires);
 
   let draftCount = 0, pendingCount = 0, inProgressCount = 0, completedCount = 0, sentCount = 0;
   let completionTimeTotalSeconds = 0, completionTimeSamples = 0;
@@ -224,7 +227,7 @@ async function dashboard(req, res, db) {
     }
   }
 
-  const items = questionnaires.map(q => toListItem(q, now, clientById, projectById));
+  const items = questionnaires.map(q => toListItem(q, now, clientById, projectById, templateById));
   const recentQuestionnaires = items.slice(0, 5);
   const recentlyCompleted = items
     .filter(item => item.status === 'Completed')

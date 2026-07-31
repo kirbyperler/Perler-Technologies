@@ -1,4 +1,7 @@
 {
+  "name": "perler-technologies",
+  "version": "1.0.0",
+  "private": true,
   "dependencies": {
     "@vercel/blob": "^2.6.1",
     "bcryptjs": "^3.0.3",

@@ -3,7 +3,7 @@
 // window.PerlerAdmin namespace built in js/admin.js.
 (() => {
   const { api, ui, format, dom } = window.PerlerAdmin;
-  const { escapeHtml, formatMoney, formatDate, statusBadge: badge } = format;
+  const { escapeHtml, money: formatMoney, date: formatDate, statusBadge: badge } = format;
   const { openModal: openModalWithNode, closeModal, confirm: requestConfirmation, toast } = ui;
   const { copyToClipboard, debounced } = dom;
 
@@ -459,6 +459,7 @@
       return `
         <tr data-id="${q.id}">
           <td data-label="Questionnaire">${escapeHtml(q.title)}</td>
+          <td data-label="Source" class="cell-muted">${escapeHtml(q.sourceTemplateTitle || 'Blank')}</td>
           <td data-label="Client" class="cell-muted">${escapeHtml(q.clientName || '—')}</td>
           <td data-label="Project" class="cell-muted">${escapeHtml(q.projectName || '—')}</td>
           <td data-label="Status">${badge(q.status)}</td>
@@ -468,7 +469,7 @@
         </tr>
       `;
     }).join('');
-    return `<table class="invoice-table"><thead><tr><th>Questionnaire</th><th>Client</th><th>Project</th><th>Status</th><th>Progress</th>${showSent ? '<th>Sent</th>' : ''}<th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `<table class="invoice-table"><thead><tr><th>Questionnaire</th><th>Source</th><th>Client</th><th>Project</th><th>Status</th><th>Progress</th>${showSent ? '<th>Sent</th>' : ''}<th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   window.loadQuestionnairesList = loadQuestionnairesList;
