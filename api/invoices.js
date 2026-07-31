@@ -196,6 +196,26 @@ async function create(req, res, db) {
   const dueDate = parseDueDate(body.dueDate);
   if (!dueDate) return res.status(400).json({ error: 'A valid due date is required.' });
 
+  // Optional links into the new clients/projects collections (see api/clients.js,
+  // api/projects.js). Entirely additive: clientName/businessName/projectName above
+  // remain required and are still what every existing invoice relies on -- these are
+  // just an optional relational anchor for newly created invoices going forward.
+  let clientId = null;
+  let projectId = null;
+  if (body.clientId) {
+    clientId = toObjectId(body.clientId);
+    if (!clientId) return res.status(400).json({ error: 'Invalid client reference.' });
+    const clientDoc = await db.collection('clients').findOne({ _id: clientId });
+    if (!clientDoc) return res.status(404).json({ error: 'Client not found.' });
+  }
+  if (body.projectId) {
+    projectId = toObjectId(body.projectId);
+    if (!projectId) return res.status(400).json({ error: 'Invalid project reference.' });
+    const projectDoc = await db.collection('projects').findOne({ _id: projectId });
+    if (!projectDoc) return res.status(404).json({ error: 'Project not found.' });
+    clientId = projectDoc.clientId; // a project always determines its client
+  }
+
   const now = new Date();
   const invoiceNumber = await nextInvoiceNumber(db);
 
@@ -205,6 +225,8 @@ async function create(req, res, db) {
     clientEmail,
     businessName,
     projectName,
+    clientId,
+    projectId,
     description,
     amount,
     currency: 'usd',

@@ -27,6 +27,46 @@ async function main() {
     // Stripe can retry webhook deliveries; this makes duplicate event ids safe to insert.
     await db.collection('stripe_webhook_events').createIndex({ eventId: 1 }, { unique: true });
 
+    // Generic public-endpoint rate limiting; see lib/rateLimit.js.
+    await db.collection('rate_limits').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+    // ---------- Questionnaire system (Phase 2) ----------
+
+    // email is intentionally NOT unique -- a shared business inbox may belong to more
+    // than one client. Drop the old unique index from before this decision, if present,
+    // then (re)create it as a plain lookup index. Safe to re-run.
+    try {
+      await db.collection('clients').dropIndex('email_1');
+    } catch (error) {
+      if (error?.codeName !== 'IndexNotFound') throw error;
+    }
+    await db.collection('clients').createIndex({ email: 1 });
+    await db.collection('clients').createIndex({ createdAt: -1 });
+
+    await db.collection('projects').createIndex({ clientId: 1 });
+    await db.collection('projects').createIndex({ status: 1 });
+    await db.collection('projects').createIndex({ createdAt: -1 });
+
+    await db.collection('questionnaireTemplates').createIndex({ status: 1 });
+    await db.collection('questionnaireTemplates').createIndex({ createdAt: -1 });
+
+    await db.collection('questionnaires').createIndex({ accessToken: 1 }, { unique: true, sparse: true });
+    await db.collection('questionnaires').createIndex({ status: 1 });
+    await db.collection('questionnaires').createIndex({ clientId: 1 });
+    await db.collection('questionnaires').createIndex({ projectId: 1 });
+    await db.collection('questionnaires').createIndex({ linkedInvoiceId: 1 });
+    await db.collection('questionnaires').createIndex({ sourceTemplateId: 1 });
+    await db.collection('questionnaires').createIndex({ createdAt: -1 });
+
+    // One response per questionnaire instance.
+    await db.collection('questionnaireResponses').createIndex({ questionnaireId: 1 }, { unique: true });
+
+    await db.collection('questionnaireFiles').createIndex({ questionnaireId: 1 });
+    await db.collection('questionnaireFiles').createIndex({ questionId: 1 });
+
+    await db.collection('questionnaireEmailLog').createIndex({ questionnaireId: 1 });
+    await db.collection('questionnaireEmailLog').createIndex({ sentAt: -1 });
+
     console.log('Indexes created successfully.');
   } finally {
     await client.close();

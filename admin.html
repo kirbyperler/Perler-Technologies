@@ -17,9 +17,13 @@
   <link rel="stylesheet" href="css/global.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="css/questionnaire-builder.css">
 
   <script src="js/navigation.js" defer></script>
   <script src="js/admin.js" defer></script>
+  <script src="js/questionnaire-renderer.js" defer></script>
+  <script src="js/admin-questionnaires.js" defer></script>
+  <script src="js/questionnaire-builder.js" defer></script>
 </head>
 <body class="admin-body">
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -36,6 +40,9 @@
 
       <nav class="site-nav admin-nav" id="admin-nav" aria-label="Admin navigation">
         <a href="#/dashboard" data-route="dashboard">Dashboard</a>
+        <a href="#/clients" data-route="clients">Clients</a>
+        <a href="#/projects" data-route="projects">Projects</a>
+        <a href="#/questionnaires" data-route="questionnaires-overview">Questionnaires</a>
         <a href="#/invoices" data-route="invoices">Invoices</a>
         <a href="#/invoices/new" data-route="create">Create Invoice</a>
         <button class="nav-button" type="button" id="logout-button">Logout</button>
@@ -212,7 +219,326 @@
         <div class="admin-panel" id="invoice-detail-panel"></div>
       </section>
 
+      <!-- CLIENTS -->
+      <section class="admin-view" id="view-clients" data-view="clients" hidden>
+        <div class="admin-view-heading">
+          <p class="section-label">Relationships</p>
+          <h1>Clients</h1>
+        </div>
+        <div class="invoice-toolbar">
+          <div class="field-group toolbar-search">
+            <label for="client-search">Search</label>
+            <input id="client-search" type="search" placeholder="Name, email, or business" maxlength="100">
+          </div>
+          <div class="field-group">
+            <label for="client-sort">Sort by</label>
+            <div class="select-wrap">
+              <select id="client-sort">
+                <option value="newest">Newest</option>
+                <option value="name">Name</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="sr-only" for="client-add-button">Add client</label>
+            <button class="button button-primary" type="button" id="client-add-button" onclick="openClientForm()">Add Client</button>
+          </div>
+        </div>
+        <div class="admin-panel" id="clients-panel"></div>
+      </section>
+
+      <section class="admin-view" id="view-client-detail" data-view="client-detail" hidden>
+        <div class="admin-view-heading">
+          <a class="text-link" href="#/clients">← Back to clients</a>
+        </div>
+        <div class="admin-panel" id="client-detail-panel"></div>
+      </section>
+
+      <!-- PROJECTS -->
+      <section class="admin-view" id="view-projects" data-view="projects" hidden>
+        <div class="admin-view-heading">
+          <p class="section-label">Delivery</p>
+          <h1>Projects</h1>
+        </div>
+        <div class="invoice-toolbar">
+          <div class="field-group toolbar-search">
+            <label for="project-search">Search</label>
+            <input id="project-search" type="search" placeholder="Project name or description" maxlength="100">
+          </div>
+          <div class="field-group">
+            <label for="project-status-filter">Status</label>
+            <div class="select-wrap">
+              <select id="project-status-filter">
+                <option value="">All statuses</option>
+                <option>Active</option><option>On Hold</option><option>Completed</option><option>Cancelled</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="project-discovery-filter">Discovery</label>
+            <div class="select-wrap">
+              <select id="project-discovery-filter">
+                <option value="">All</option>
+                <option>Not Started</option><option>Sent</option><option>Viewed</option><option>In Progress</option><option>Complete</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="sr-only" for="project-add-button">Add project</label>
+            <button class="button button-primary" type="button" id="project-add-button" onclick="openProjectForm()">Add Project</button>
+          </div>
+        </div>
+        <div class="admin-panel" id="projects-panel"></div>
+      </section>
+
+      <section class="admin-view" id="view-project-detail" data-view="project-detail" hidden>
+        <div class="admin-view-heading">
+          <a class="text-link" href="#/projects">← Back to projects</a>
+        </div>
+        <div class="admin-panel" id="project-detail-panel"></div>
+      </section>
+
+      <!-- QUESTIONNAIRES -->
+      <section class="admin-view" id="view-questionnaires-overview" data-view="questionnaires-overview" hidden>
+        <div class="admin-view-heading">
+          <p class="section-label">Discovery</p>
+          <h1>Questionnaires</h1>
+        </div>
+        <nav class="subnav" aria-label="Questionnaire views">
+          <a href="#/questionnaires" class="active">Overview</a>
+          <a href="#/questionnaires/templates">Templates</a>
+          <a href="#/questionnaires/drafts">Drafts</a>
+          <a href="#/questionnaires/pending">Pending</a>
+          <a href="#/questionnaires/completed">Completed</a>
+          <a href="#/questionnaires/archived">Archived</a>
+        </nav>
+        <div class="quick-actions">
+          <button class="button button-primary" type="button" onclick="window.location.hash = '#/questionnaires/builder/template/new'">New Template</button>
+          <button class="button button-secondary" type="button" onclick="openCreateFromTemplateModal()">New From Template</button>
+          <button class="button button-secondary" type="button" onclick="window.location.hash = '#/questionnaires/builder/instance/new'">New Blank Questionnaire</button>
+        </div>
+        <div class="stat-grid" id="questionnaire-stats" aria-live="polite"></div>
+        <div class="admin-panel" style="margin-bottom:18px;">
+          <div class="panel-heading">
+            <h2>Recent Questionnaires</h2>
+            <a class="text-link" href="#/questionnaires/pending">View pending <span aria-hidden="true">→</span></a>
+          </div>
+          <div id="questionnaire-recent-list"></div>
+        </div>
+        <div class="admin-panel">
+          <div class="panel-heading">
+            <h2>Recently Completed</h2>
+            <a class="text-link" href="#/questionnaires/completed">View all <span aria-hidden="true">→</span></a>
+          </div>
+          <div id="questionnaire-recent-completed"></div>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-questionnaires-list" data-view="questionnaires-list" hidden>
+        <div class="admin-view-heading">
+          <p class="section-label">Discovery</p>
+          <h1 id="questionnaires-list-title">Questionnaires</h1>
+        </div>
+        <nav class="subnav" aria-label="Questionnaire views" id="questionnaires-list-subnav">
+          <a href="#/questionnaires">Overview</a>
+          <a href="#/questionnaires/templates" data-filter="templates">Templates</a>
+          <a href="#/questionnaires/drafts" data-filter="drafts">Drafts</a>
+          <a href="#/questionnaires/pending" data-filter="pending">Pending</a>
+          <a href="#/questionnaires/completed" data-filter="completed">Completed</a>
+          <a href="#/questionnaires/archived" data-filter="archived">Archived</a>
+        </nav>
+        <div class="invoice-toolbar">
+          <div class="field-group toolbar-search">
+            <label for="questionnaire-search">Search</label>
+            <input id="questionnaire-search" type="search" placeholder="Title, client, or project" maxlength="100">
+          </div>
+          <div class="field-group" id="questionnaire-sort-group">
+            <label for="questionnaire-sort">Sort by</label>
+            <div class="select-wrap">
+              <select id="questionnaire-sort">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="title">Title</option>
+                <option value="client">Client</option>
+                <option value="project">Project</option>
+                <option value="lastactivity">Last activity</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="admin-panel" id="questionnaires-list-panel"></div>
+      </section>
+
+      <section class="admin-view" id="view-questionnaire-builder" data-view="questionnaire-builder" hidden>
+        <div class="admin-view-heading">
+          <a class="text-link" href="#/questionnaires" id="builder-back-link">← Back to questionnaires</a>
+        </div>
+        <div id="builder-lock-notice"></div>
+        <div class="admin-panel">
+          <div class="builder-header">
+            <div class="field-group">
+              <label class="sr-only" for="builder-title">Questionnaire title</label>
+              <input id="builder-title" class="builder-title-input" placeholder="Questionnaire title" maxlength="200">
+              <label class="sr-only" for="builder-description">Questionnaire description</label>
+              <textarea id="builder-description" placeholder="Optional description shown to the respondent" maxlength="4000" rows="2"></textarea>
+            </div>
+            <div class="builder-actions">
+              <span class="save-status is-unsaved" id="builder-save-status">Unsaved changes</span>
+              <button class="button button-secondary" type="button" id="builder-preview-button" onclick="openBuilderPreview()">Preview</button>
+              <button class="button button-secondary" type="button" id="builder-save-button" onclick="saveBuilder()">Save Draft</button>
+              <button class="button button-secondary" type="button" id="builder-publish-button" onclick="publishBuilder()">Publish</button>
+              <button class="button button-secondary hidden" type="button" id="builder-copy-link-button" onclick="copyBuilderLink()">Copy Link</button>
+              <button class="button button-primary hidden" type="button" id="builder-send-button" onclick="openSendModal()">Send</button>
+            </div>
+          </div>
+          <div class="builder-sections" id="builder-sections"></div>
+          <div class="form-actions" style="margin-top:16px;">
+            <button class="button button-secondary" type="button" onclick="addBuilderSection()">Add Section</button>
+          </div>
+        </div>
+      </section>
+
     </div>
   </main>
+
+  <!-- MODAL CONTENT (relocated into the shared modal by openModalWithNode) -->
+
+  <div class="hidden" id="client-form-card">
+    <form class="admin-form" id="client-form" onsubmit="submitClientForm(event)">
+      <input type="hidden" id="client-form-id">
+      <div class="form-grid two-column">
+        <div class="field-group">
+          <label for="client-name">Name <span aria-hidden="true">*</span></label>
+          <input id="client-name" required maxlength="200">
+        </div>
+        <div class="field-group">
+          <label for="client-email">Email <span aria-hidden="true">*</span></label>
+          <input id="client-email" type="email" required maxlength="200">
+          <small class="field-hint">Shared inboxes (e.g. info@company.com) are allowed across multiple clients.</small>
+        </div>
+        <div class="field-group">
+          <label for="client-phone">Phone <span class="optional">Optional</span></label>
+          <input id="client-phone" maxlength="50">
+        </div>
+        <div class="field-group">
+          <label for="client-business">Business Name <span class="optional">Optional</span></label>
+          <input id="client-business" maxlength="200">
+        </div>
+      </div>
+      <div class="field-group">
+        <label for="client-notes">Notes <span class="optional">Optional, admin-only</span></label>
+        <textarea id="client-notes" rows="3" maxlength="5000"></textarea>
+      </div>
+      <div class="form-status" id="client-form-status" role="status" aria-live="polite"></div>
+      <div class="form-actions">
+        <button class="button button-primary full" type="submit">Save Client</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="hidden" id="project-form-card">
+    <form class="admin-form" id="project-form" onsubmit="submitProjectForm(event)">
+      <input type="hidden" id="project-form-id">
+      <div class="field-group">
+        <label for="project-client">Client <span aria-hidden="true">*</span></label>
+        <div class="select-wrap"><select id="project-client" required></select></div>
+      </div>
+      <div class="field-group">
+        <label for="project-name">Project Name <span aria-hidden="true">*</span></label>
+        <input id="project-name" required maxlength="200">
+      </div>
+      <div class="field-group">
+        <label for="project-description">Description <span class="optional">Optional</span></label>
+        <textarea id="project-description" rows="3" maxlength="4000"></textarea>
+      </div>
+      <div class="field-group">
+        <label for="project-status">Status</label>
+        <div class="select-wrap">
+          <select id="project-status">
+            <option>Active</option><option>On Hold</option><option>Completed</option><option>Cancelled</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-status" id="project-form-status" role="status" aria-live="polite"></div>
+      <div class="form-actions">
+        <button class="button button-primary full" type="submit">Save Project</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="hidden" id="create-from-template-card">
+    <form class="admin-form" id="create-from-template-form" onsubmit="submitCreateFromTemplate(event)">
+      <div class="field-group" id="cft-template-group">
+        <label for="cft-template">Template <span aria-hidden="true">*</span></label>
+        <div class="select-wrap"><select id="cft-template" required></select></div>
+      </div>
+      <div class="field-group">
+        <label for="cft-title">Questionnaire Title <span aria-hidden="true">*</span></label>
+        <input id="cft-title" required maxlength="200">
+      </div>
+      <div class="form-grid two-column">
+        <div class="field-group">
+          <label for="cft-client">Client <span class="optional">Optional</span></label>
+          <div class="select-wrap"><select id="cft-client"><option value="">None</option></select></div>
+        </div>
+        <div class="field-group">
+          <label for="cft-project">Project <span class="optional">Optional</span></label>
+          <div class="select-wrap"><select id="cft-project"><option value="">None</option></select></div>
+        </div>
+      </div>
+      <p class="field-hint">Selecting a project automatically sets its client. The link expiration date is set when the questionnaire is sent.</p>
+      <div class="form-status" id="cft-status" role="status" aria-live="polite"></div>
+      <div class="form-actions">
+        <button class="button button-primary full" type="submit">Create Questionnaire</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="hidden" id="send-questionnaire-card">
+    <form class="admin-form" id="send-questionnaire-form" onsubmit="submitSendQuestionnaire(event)">
+      <input type="hidden" id="send-questionnaire-id">
+      <input type="hidden" id="send-questionnaire-mode" value="send">
+      <div class="field-group">
+        <label for="send-recipient-email">Recipient Email <span aria-hidden="true">*</span></label>
+        <input id="send-recipient-email" type="email" required maxlength="200">
+      </div>
+      <div class="field-group">
+        <label for="send-custom-message">Custom Message <span class="optional">Optional</span></label>
+        <textarea id="send-custom-message" rows="3" maxlength="2000"></textarea>
+      </div>
+      <div class="field-group">
+        <label for="send-expiration">Link Expiration <span class="optional">Optional, defaults to 90 days from send</span></label>
+        <input id="send-expiration" type="date">
+      </div>
+      <div class="form-status" id="send-form-status" role="status" aria-live="polite"></div>
+      <div class="form-actions">
+        <button class="button button-primary full" type="submit" id="send-form-submit">Send</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="hidden" id="confirm-action-card">
+    <p id="confirm-action-message" class="field-hint" style="font-size:.92rem; margin-bottom:20px;"></p>
+    <div class="form-actions">
+      <button class="button button-primary full" type="button" id="confirm-action-button">Confirm</button>
+    </div>
+  </div>
+
+  <div class="hidden" id="preview-modal-card">
+    <div class="preview-banner">Preview Mode — nothing here is saved</div>
+    <div id="preview-modal-body"></div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-panel" id="modalPanel" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h3 id="modalTitle"></h3>
+        <button class="modal-close" type="button" onclick="closeModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
 </body>
 </html>

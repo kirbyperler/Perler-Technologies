@@ -14,8 +14,11 @@
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
   }[char]));
 
+  // Strips anything that isn't a-z0-9 from the class key (not just lowercasing) so a
+  // multi-word status like "On Hold" produces one valid class ("status-onhold")
+  // instead of silently splitting into two class tokens on the space.
   function statusBadge(status) {
-    const key = String(status || '').toLowerCase();
+    const key = String(status || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
     return `<span class="status-badge status-${key}">${escapeHtml(status)}</span>`;
   }
 
@@ -32,7 +35,11 @@
     }
 
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'The request could not be completed.');
+    if (!response.ok) {
+      const error = new Error(data.error || 'The request could not be completed.');
+      if (Array.isArray(data.errors)) error.errors = data.errors; // e.g. questionnaire content validation
+      throw error;
+    }
     return data;
   }
 
@@ -64,13 +71,32 @@
     if (parts[0] === 'invoices' && parts[1] === 'new') return { name: 'create' };
     if (parts[0] === 'invoices' && parts[1]) return { name: 'detail', id: parts[1] };
     if (parts[0] === 'invoices') return { name: 'invoices' };
+
+    if (parts[0] === 'clients' && parts[1]) return { name: 'client-detail', id: parts[1] };
+    if (parts[0] === 'clients') return { name: 'clients' };
+
+    if (parts[0] === 'projects' && parts[1]) return { name: 'project-detail', id: parts[1] };
+    if (parts[0] === 'projects') return { name: 'projects' };
+
+    if (parts[0] === 'questionnaires' && parts[1] === 'builder') {
+      return { name: 'questionnaire-builder', kind: parts[2], id: parts[3] };
+    }
+    if (parts[0] === 'questionnaires' && parts[1]) return { name: 'questionnaires-list', filter: parts[1] };
+    if (parts[0] === 'questionnaires') return { name: 'questionnaires-overview' };
+
     return { name: 'dashboard' };
   }
 
   function renderRoute() {
     const route = currentRoute();
     views.forEach(view => { view.hidden = view.dataset.view !== route.name; });
-    navLinks.forEach(link => link.classList.toggle('active', link.dataset.route === route.name));
+
+    // Templates/drafts/pending/completed/archived all map onto the single
+    // "Questionnaires" nav link, same as invoice detail mapping onto "Invoices".
+    const navName = route.name === 'questionnaires-list' || route.name === 'questionnaire-builder'
+      ? 'questionnaires-overview'
+      : (route.name === 'detail' ? 'invoices' : route.name);
+    navLinks.forEach(link => link.classList.toggle('active', link.dataset.route === navName));
 
     document.querySelector('.admin-nav')?.classList.remove('open');
     document.querySelector('.menu-toggle')?.classList.remove('open');
@@ -79,9 +105,171 @@
     else if (route.name === 'invoices') loadInvoices();
     else if (route.name === 'create') resetCreateForm();
     else if (route.name === 'detail') loadInvoiceDetail(route.id);
+    else if (route.name === 'clients') window.loadClients?.();
+    else if (route.name === 'client-detail') window.loadClientDetail?.(route.id);
+    else if (route.name === 'projects') window.loadProjects?.();
+    else if (route.name === 'project-detail') window.loadProjectDetail?.(route.id);
+    else if (route.name === 'questionnaires-overview') window.loadQuestionnairesOverview?.();
+    else if (route.name === 'questionnaires-list') window.loadQuestionnairesList?.(route.filter);
+    else if (route.name === 'questionnaire-builder') window.loadQuestionnaireBuilder?.(route.kind, route.id);
   }
 
-  window.addEventListener('hashchange', renderRoute);
+  // Blocks navigating away from the builder (via nav links, Back/Forward, or a
+  // direct hash edit) while there are unsaved changes -- window.builderHasUnsavedChanges
+  // is defined by js/questionnaire-builder.js.
+  window.addEventListener('hashchange', function(event) {
+    if (typeof window.builderHasUnsavedChanges === 'function' && window.builderHasUnsavedChanges()) {
+      const proceed = window.confirm('You have unsaved changes in this questionnaire. Leave without saving?');
+      if (!proceed) {
+        const previousHash = new URL(event.oldURL).hash;
+        window.location.hash = previousHash;
+        return;
+      }
+    }
+    renderRoute();
+  });
+
+  window.addEventListener('beforeunload', function(event) {
+    if (typeof window.builderHasUnsavedChanges === 'function' && window.builderHasUnsavedChanges()) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
+
+  // ---------- Generic modal (shared by every admin form/confirmation dialog) ----------
+  // Traps Tab/Shift+Tab focus inside the panel while open and restores focus to
+  // whatever triggered it on close, so keyboard/screen-reader users never land back
+  // at the top of the page after closing a dialog.
+
+  let modalOpenerElement = null;
+
+  function focusableElements(container) {
+    return Array.from(container.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+      .filter(el => el.offsetParent !== null);
+  }
+
+  function trapModalFocus(event) {
+    if (event.key !== 'Tab') return;
+    const panel = document.getElementById('modalPanel');
+    const focusable = focusableElements(panel);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }
+
+  function openModalWithNode(title, nodeId, options = {}) {
+    const overlay = document.getElementById('modalOverlay');
+    const titleEl = document.getElementById('modalTitle');
+    const bodyEl = document.getElementById('modalBody');
+    const panel = document.getElementById('modalPanel');
+    const node = document.getElementById(nodeId);
+    if (!overlay || !titleEl || !bodyEl || !node) return;
+
+    if (!node.__modalHome) node.__modalHome = { parent: node.parentElement, next: node.nextSibling };
+    bodyEl.innerHTML = '';
+    bodyEl.appendChild(node);
+    node.classList.remove('hidden');
+
+    titleEl.textContent = title;
+    panel?.classList.toggle('modal-wide', Boolean(options.wide));
+    overlay.classList.add('open');
+    document.body.classList.add('modal-open');
+
+    modalOpenerElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    focusableElements(panel)[0]?.focus();
+  }
+
+  function closeModal() {
+    const overlay = document.getElementById('modalOverlay');
+    const bodyEl = document.getElementById('modalBody');
+    if (!overlay || !bodyEl) return;
+    const node = bodyEl.firstElementChild;
+    if (node && node.__modalHome) {
+      node.classList.add('hidden');
+      node.__modalHome.parent.insertBefore(node, node.__modalHome.next);
+    }
+    overlay.classList.remove('open');
+    document.body.classList.remove('modal-open');
+
+    const returnTo = modalOpenerElement && document.contains(modalOpenerElement) ? modalOpenerElement : null;
+    modalOpenerElement = null;
+    returnTo?.focus();
+  }
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeModal();
+    else if (document.body.classList.contains('modal-open')) trapModalFocus(event);
+  });
+
+  // Reusable destructive-action confirmation, used throughout the admin instead of a
+  // native confirm() so every destructive action shares one dialog.
+  function requestConfirmation(message, onConfirm, confirmLabel = 'Confirm') {
+    const messageEl = document.getElementById('confirm-action-message');
+    const button = document.getElementById('confirm-action-button');
+    if (messageEl) messageEl.textContent = message;
+    if (button) {
+      button.textContent = confirmLabel;
+      button.onclick = async () => {
+        button.disabled = true;
+        try { await onConfirm(); } finally { button.disabled = false; }
+      };
+    }
+    openModalWithNode('Confirm', 'confirm-action-card');
+  }
+
+  // ---------- Toast notifications ----------
+  // Replaces alert()-style error/success reporting with one consistent, non-blocking
+  // notification. type: 'success' (default) or 'error'. Destructive actions still go
+  // through requestConfirmation() above before the request is made -- this is only
+  // for reporting the outcome afterward.
+  let toastCount = 0;
+
+  function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    if (!container || !message) return;
+    const isError = type === 'error';
+    const toastEl = document.createElement('div');
+    toastEl.id = `toast-${++toastCount}`;
+    toastEl.className = `toast toast-${isError ? 'error' : 'success'}`;
+    toastEl.setAttribute('role', isError ? 'alert' : 'status');
+    toastEl.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+    toastEl.textContent = message;
+    container.appendChild(toastEl);
+    requestAnimationFrame(() => toastEl.classList.add('toast-visible'));
+    setTimeout(() => {
+      toastEl.classList.remove('toast-visible');
+      setTimeout(() => toastEl.remove(), 220);
+    }, 4200);
+  }
+
+  // Trailing-edge debounce used by every search input across the admin (invoices,
+  // clients, projects, questionnaires).
+  function debounced(fn, ms = 300) {
+    let handle = null;
+    return (...args) => { clearTimeout(handle); handle = setTimeout(() => fn(...args), ms); };
+  }
+
+  const formatDuration = seconds => {
+    if (seconds == null) return '—';
+    const minutes = Math.round(seconds / 60);
+    return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+  };
+
+  // Single namespace for everything the questionnaire/client/project modules need
+  // from this file, instead of a long list of individual window.* globals. Page-level
+  // action handlers (open*Form, save*, etc. in the other admin-* files) still need to
+  // stay directly on window because they're wired via inline onclick="" attributes in
+  // admin.html and in dynamically generated table/card markup, where only a bare
+  // global name resolves -- see js/admin-questionnaires.js and
+  // js/questionnaire-builder.js for how they register themselves.
+  window.PerlerAdmin = {
+    api,
+    ui: { openModal: openModalWithNode, closeModal, confirm: requestConfirmation, toast: showToast },
+    format: { money: formatMoney, date: formatDate, dateTime: formatDateTime, duration: formatDuration, escapeHtml, statusBadge },
+    dom: { debounced, copyToClipboard }
+  };
 
   // ---------- Dashboard ----------
 

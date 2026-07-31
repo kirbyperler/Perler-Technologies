@@ -17,6 +17,14 @@
   --radius-lg: 34px;
   --shadow-sm: 0 12px 34px rgba(8, 26, 53, .08);
   --shadow-lg: 0 34px 90px rgba(8, 26, 53, .16);
+  --transition-fast: .2s ease;
+  /* Site-wide stacking order, low to high. Page-local decorative z-index values
+     (e.g. a background shape sitting above/below other elements on one page) are
+     left as plain numbers -- these three are the ones actually shared/duplicated
+     across files. */
+  --z-header: 100;
+  --z-modal: 200;
+  --z-toast: 300;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
