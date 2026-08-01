@@ -216,7 +216,7 @@
             ${question.type === 'rating_5' ? '<p class="field-hint">Respondents choose a rating from 1 to 5.</p>' : ''}
             ${question.type === 'rating_10' ? '<p class="field-hint">Respondents choose a rating from 1 to 10.</p>' : ''}
             ${FILE_CONSTRAINTS[question.type] ? `<p class="file-constraints-note">${FILE_CONSTRAINTS[question.type]}</p>` : ''}
-            ${!isLayout ? conditionalEditorHtml(`${path.replace(/"/g, '&quot;')}`, question.conditionalLogic, candidates) : ''}
+            ${!isLayout ? conditionalEditorHtml(path, question.conditionalLogic, candidates) : ''}
           </div>
           <div class="question-card-tools">
             <button class="icon-button" type="button" title="Move up" aria-label="Move question up" onclick="moveQuestion(${sectionIdx},${questionIdx},-1)" ${locked || questionIdx === 0 ? 'disabled' : ''}>↑</button>
@@ -445,7 +445,30 @@
   window.duplicateSection = function duplicateSection(idx) {
     const copy = JSON.parse(JSON.stringify(doc.sections[idx]));
     copy.id = newId();
-    copy.questions.forEach(q => { q.id = newId(); q.options?.forEach(o => { o.id = newId(); }); });
+
+    // Regenerate every question's id first (recording old -> new), then rewrite any
+    // conditionalLogic within the copy that targeted another question inside this
+    // same section. Root cause this avoids: without the rewrite, a duplicated
+    // question's condition kept pointing at the *original* section's source
+    // question (whose id didn't change) instead of its own copy -- a reference
+    // that still looks structurally valid (the original question is still earlier
+    // in the flattened order), so cleanConditionalLogic() would never catch it.
+    // The result: "Show only when" appeared broken for every duplicated section,
+    // since answering the copy's own source question did nothing -- the copy's
+    // dependent question was silently still wired to the original section.
+    const idMap = new Map();
+    copy.questions.forEach(q => {
+      const oldId = q.id;
+      q.id = newId();
+      idMap.set(oldId, q.id);
+      q.options?.forEach(o => { o.id = newId(); });
+    });
+    copy.questions.forEach(q => {
+      if (q.conditionalLogic && idMap.has(q.conditionalLogic.questionId)) {
+        q.conditionalLogic = { ...q.conditionalLogic, questionId: idMap.get(q.conditionalLogic.questionId) };
+      }
+    });
+
     doc.sections.splice(idx + 1, 0, copy);
     markUnsaved(); renderBuilder();
   };

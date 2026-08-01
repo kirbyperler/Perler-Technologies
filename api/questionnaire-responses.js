@@ -266,7 +266,8 @@ async function submit(req, res, db) {
     await sendCompletionNotificationEmail(db, {
       questionnaire,
       clientName: client?.name || null,
-      projectName: project?.name || null
+      projectName: project?.name || null,
+      req
     });
   } catch (error) {
     console.error('Completion notification email failed:', error.message);

@@ -6,6 +6,7 @@ const { sanitizeQuestionnaireContent } = require('../lib/questionnaire-validatio
 const { generateSecureToken } = require('../lib/tokens');
 const { sendQuestionnaireInviteEmail } = require('../lib/email');
 const { batchFetchByIds } = require('../lib/relations');
+const { questionnaireLink } = require('../lib/site-url');
 
 const TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000; // default: 90 days from send/resend/remind
 
@@ -33,14 +34,6 @@ const EMPTY_PROGRESS = {
   submittedAt: null,
   timeToCompleteSeconds: null
 };
-
-function siteBase() {
-  return (process.env.SITE_URL || 'https://perlertechnologies.com').replace(/\/$/, '');
-}
-
-function respondLinkFor(token) {
-  return token ? `${siteBase()}/questionnaire/${token}` : null;
-}
 
 // "Expired" is never stored -- derived the same way invoices.js derives "Overdue"
 // from dueDate + status, so the browser can never claim a link is (or isn't) expired
@@ -96,11 +89,11 @@ function toListItem(questionnaire, now, clientById, projectById, templateById) {
   };
 }
 
-function toDetail(questionnaire, now) {
+function toDetail(questionnaire, now, req) {
   return {
     ...serialize(questionnaire),
     status: effectiveStatus(questionnaire, now),
-    respondLink: respondLinkFor(questionnaire.accessToken)
+    respondLink: questionnaireLink(questionnaire.accessToken, req)
   };
 }
 
@@ -262,7 +255,7 @@ async function get(req, res, db) {
   ]);
 
   return res.status(200).json({
-    questionnaire: toDetail(questionnaire, new Date()),
+    questionnaire: toDetail(questionnaire, new Date(), req),
     client: client ? serialize(client) : null,
     project: project ? serialize(project) : null
   });
@@ -309,7 +302,7 @@ async function createFromTemplate(req, res, db) {
   };
 
   const result = await db.collection('questionnaires').insertOne(document);
-  return res.status(201).json({ questionnaire: toDetail({ ...document, _id: result.insertedId }, now) });
+  return res.status(201).json({ questionnaire: toDetail({ ...document, _id: result.insertedId }, now, req) });
 }
 
 async function createBlank(req, res, db) {
@@ -344,7 +337,7 @@ async function createBlank(req, res, db) {
   };
 
   const result = await db.collection('questionnaires').insertOne(document);
-  return res.status(201).json({ questionnaire: toDetail({ ...document, _id: result.insertedId }, now) });
+  return res.status(201).json({ questionnaire: toDetail({ ...document, _id: result.insertedId }, now, req) });
 }
 
 // Shared by the "update" and "saveDraft" actions. Both re-validate + replace content
@@ -428,7 +421,7 @@ async function updateContent(req, res, db, forceDraftStatus) {
 
   await db.collection('questionnaires').updateOne({ _id: id }, { $set: updates });
   const updated = await db.collection('questionnaires').findOne({ _id: id });
-  return res.status(200).json({ questionnaire: toDetail(updated, new Date()) });
+  return res.status(200).json({ questionnaire: toDetail(updated, new Date(), req) });
 }
 
 async function publish(req, res, db) {
@@ -446,7 +439,7 @@ async function publish(req, res, db) {
 
   await db.collection('questionnaires').updateOne({ _id: id }, { $set: { status: 'Published', updatedAt: new Date() } });
   const updated = await db.collection('questionnaires').findOne({ _id: id });
-  return res.status(200).json({ questionnaire: toDetail(updated, new Date()) });
+  return res.status(200).json({ questionnaire: toDetail(updated, new Date(), req) });
 }
 
 // First delivery only. Only persists the status/token/timestamp transition once the
@@ -487,7 +480,8 @@ async function send(req, res, db) {
     questionnaire: { ...questionnaire, accessToken },
     recipientEmail,
     customMessage,
-    type: 'initial_send'
+    type: 'initial_send',
+    req
   });
   if (!emailResult.success) return res.status(502).json({ error: emailResult.error });
 
@@ -500,7 +494,7 @@ async function send(req, res, db) {
   await advanceProjectDiscoveryStatus(db, questionnaire.projectId, 'Sent');
 
   const updated = await db.collection('questionnaires').findOne({ _id: id });
-  return res.status(200).json({ questionnaire: toDetail(updated, now) });
+  return res.status(200).json({ questionnaire: toDetail(updated, now, req) });
 }
 
 // Shared by resend() and remind() -- identical mechanics, different email copy/type.
@@ -521,7 +515,7 @@ async function sendFollowUp(req, res, db, type) {
   if (!recipientEmail || !isValidEmail(recipientEmail)) return res.status(400).json({ error: 'A valid recipient email is required.' });
 
   const customMessage = clean(body.customMessage, 2000);
-  const emailResult = await sendQuestionnaireInviteEmail(db, { questionnaire, recipientEmail, customMessage, type });
+  const emailResult = await sendQuestionnaireInviteEmail(db, { questionnaire, recipientEmail, customMessage, type, req });
   if (!emailResult.success) return res.status(502).json({ error: emailResult.error });
 
   const now = new Date();
@@ -533,7 +527,7 @@ async function sendFollowUp(req, res, db, type) {
   }, $inc: { reminderCount: 1 } });
 
   const updated = await db.collection('questionnaires').findOne({ _id: id });
-  return res.status(200).json({ questionnaire: toDetail(updated, now) });
+  return res.status(200).json({ questionnaire: toDetail(updated, now, req) });
 }
 
 async function archive(req, res, db) {
@@ -549,7 +543,7 @@ async function archive(req, res, db) {
   );
   const questionnaire = result?.value || result;
   if (!questionnaire) return res.status(404).json({ error: 'Questionnaire not found.' });
-  return res.status(200).json({ questionnaire: toDetail(questionnaire, new Date()) });
+  return res.status(200).json({ questionnaire: toDetail(questionnaire, new Date(), req) });
 }
 
 // Creates a brand-new Draft instance from an existing questionnaire's *current*
@@ -589,7 +583,7 @@ async function duplicate(req, res, db) {
   };
 
   const result = await db.collection('questionnaires').insertOne(document);
-  return res.status(201).json({ questionnaire: toDetail({ ...document, _id: result.insertedId }, now) });
+  return res.status(201).json({ questionnaire: toDetail({ ...document, _id: result.insertedId }, now, req) });
 }
 
 module.exports = async function handler(req, res) {

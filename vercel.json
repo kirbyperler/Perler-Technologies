@@ -3,6 +3,7 @@
     { "source": "/admin-login", "destination": "/admin-login.html" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/pay", "destination": "/pay.html" },
-    { "source": "/pay/:token", "destination": "/pay.html" }
+    { "source": "/pay/:token", "destination": "/pay.html" },
+    { "source": "/questionnaire/:token", "destination": "/questionnaire.html" }
   ]
 }

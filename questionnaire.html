@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Complete your questionnaire for Perler Technologies.">
+  <meta name="theme-color" content="#051225">
+  <title>Questionnaire | Perler Technologies</title>
+
+  <link rel="icon" type="image/png" href="/images/branding/favicon.png">
+  <link rel="apple-touch-icon" href="images/branding/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/questionnaire.css">
+
+  <script src="/js/main.js" defer></script>
+  <script src="/js/questionnaire-renderer.js" defer></script>
+  <script src="/js/questionnaire.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header" id="top">
+    <div class="container nav-container">
+      <a class="brand brand-logo" href="/" aria-label="Perler Technologies home">
+        <img src="/images/branding/perler-logo-light.png" alt="Perler Technologies">
+      </a>
+      <p class="pay-header-tag">Questionnaire</p>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="pay-section section">
+      <div class="inquiry-orb inquiry-orb-one" aria-hidden="true"></div>
+      <div class="inquiry-orb inquiry-orb-two" aria-hidden="true"></div>
+
+      <div class="container pay-container">
+
+        <div class="pay-state" id="state-loading" role="status" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>Loading your questionnaire…</p>
+        </div>
+
+        <div class="pay-state" id="state-error" role="alert" hidden>
+          <p class="section-label">Something went wrong</p>
+          <h1>We couldn't load this questionnaire.</h1>
+          <p>Please check your connection and try again. If the problem continues, contact <a href="mailto:kirby@perlertechnologies.com">kirby@perlertechnologies.com</a>.</p>
+        </div>
+
+        <div class="pay-state" id="state-unavailable" role="alert" hidden>
+          <p class="section-label">Link unavailable</p>
+          <h1 id="unavailable-heading">This questionnaire link isn't available.</h1>
+          <p id="unavailable-message">Please contact Perler Technologies if you believe this is an error, at <a href="mailto:kirby@perlertechnologies.com">kirby@perlertechnologies.com</a>.</p>
+        </div>
+
+        <div class="pay-state" id="state-submitted" role="status" hidden>
+          <p class="section-label">Submitted</p>
+          <h1 id="submitted-heading">Thanks — this questionnaire has already been submitted.</h1>
+          <p>If you need to make changes, please contact <a href="mailto:kirby@perlertechnologies.com">kirby@perlertechnologies.com</a>.</p>
+        </div>
+
+        <div class="questionnaire-card" id="state-form" hidden>
+          <div class="questionnaire-card-header">
+            <p class="section-label">Questionnaire</p>
+            <h1 id="questionnaire-heading"></h1>
+            <p id="questionnaire-description" class="questionnaire-description"></p>
+          </div>
+          <p class="form-error" id="form-error" role="alert" hidden></p>
+          <p class="autosave-status" id="autosave-status" role="status" aria-live="polite"></p>
+          <div id="questionnaire-runner"></div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer pay-footer">
+    <div class="container footer-bottom">
+      <span>© <span id="current-year"></span> Perler Technologies</span>
+      <a href="mailto:kirby@perlertechnologies.com">kirby@perlertechnologies.com</a>
+    </div>
+  </footer>
+</body>
+</html>
