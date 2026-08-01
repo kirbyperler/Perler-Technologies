@@ -1,6 +1,7 @@
 // Public respondent page (Phase 4). Loads a questionnaire by its secure token, renders
 // it with the shared js/questionnaire-renderer.js runner (same conditional-logic
-// evaluator used by the admin builder's Preview), autosaves progress, and submits.
+// evaluator used by the admin builder's Preview), autosaves progress, handles file
+// uploads (via the shared renderer's config.onFileUpload hook), and submits.
 // No admin session is used or required anywhere in this file.
 (() => {
   const states = {
@@ -71,6 +72,32 @@
     } catch {
       return { ok: false, status: 0, data: {} };
     }
+  }
+
+  // config.onFileUpload for FormRenderer -- posts multipart/form-data to the same
+  // public uploadFile action (can't go through fetchJson above, which always sends a
+  // JSON body). Never touches BLOB_READ_WRITE_TOKEN; that stays server-side in
+  // api/questionnaire-responses.js.
+  async function uploadFile(file, question) {
+    const formData = new FormData();
+    formData.append('token', currentToken);
+    formData.append('questionId', question.id);
+    formData.append('file', file);
+
+    let response;
+    try {
+      response = await fetch('/api/questionnaire-responses?action=uploadFile', {
+        method: 'POST',
+        credentials: 'omit',
+        cache: 'no-store',
+        body: formData
+      });
+    } catch {
+      throw new Error('The file could not be uploaded. Please check your connection and try again.');
+    }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'The file could not be uploaded.');
+    return { fileId: data.fileId, originalName: data.originalName, size: data.size, url: data.url };
   }
 
   function persistAnswers(answers, currentSectionId) {
@@ -153,6 +180,7 @@
       answers: response.answers || {},
       currentSectionId: response.currentSectionId || null,
       submitLabel: 'Submit',
+      onFileUpload: uploadFile,
       onAnswerChange: answers => scheduleAutosave(answers, trackedSectionId),
       onSectionChange: sectionId => { trackedSectionId = sectionId; flushAutosave(runner.getAnswers(), trackedSectionId); },
       onSubmit: answers => { flushAutosave(answers, trackedSectionId); submitAnswers(answers); }

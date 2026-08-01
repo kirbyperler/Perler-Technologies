@@ -643,6 +643,16 @@ body.modal-open {
     border-bottom: 1px solid var(--line);
   }
 
+  /* Root cause of the stacked-card view's doubled/clipped bottom edge: unlike the
+     desktop table (where tr:last-child td removes the divider), this collapsed layout
+     puts the divider on the <tr> itself, and that rule never excluded the last row --
+     so its border-bottom sat immediately against .admin-panel's own bottom border,
+     reading as a doubled outline on the last card of every stacked list (most visible
+     on longer lists like the Questionnaires "Pending" tab). */
+  .invoice-table tr:last-child {
+    border-bottom: none;
+  }
+
   .invoice-table td {
     padding: 4px 0;
     border-bottom: none;

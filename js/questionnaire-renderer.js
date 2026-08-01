@@ -6,12 +6,19 @@
 // ever need their own thin wrapper around renderQuestionnaireRunner(), never a copy
 // of the rendering/visibility logic itself.
 //
-// Used by the admin builder's Preview mode now; intended for reuse by the Phase 4
-// public respondent page. The visibility algorithm mirrors
+// Used by both the admin builder's Preview modal (config.isPreview: true) and the
+// public respondent page at /questionnaire/:token (js/questionnaire-respond.js). The
+// visibility algorithm mirrors
 // lib/questionnaire-logic.js's computeVisibility() (ported to the browser since that
 // module can't be required() client-side) -- keep the two in sync if either changes.
 (() => {
-  const escapeHtml = window.PerlerAdmin?.format?.escapeHtml || (value => String(value ?? ''));
+  // Falls back to a real escaper (not just String()) when window.PerlerAdmin isn't
+  // present -- the public respondent page doesn't load admin.js, and this renderer
+  // interpolates respondent-entered values (e.g. a saved short-answer draft) back into
+  // innerHTML on reload, so an identity fallback would be an XSS hole there.
+  const escapeHtml = window.PerlerAdmin?.format?.escapeHtml || (value => String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  }[char])));
 
   function isConditionSatisfied(logic, answers) {
     if (!logic) return true;
@@ -49,6 +56,7 @@
   }
 
   const LAYOUT_TYPES = ['section_divider', 'heading'];
+  const FILE_TYPES = ['file_upload', 'image_upload'];
 
   function hasAnswer(question, value) {
     if (value === null || value === undefined) return false;
@@ -73,7 +81,7 @@
       .map(e => e.id);
   }
 
-  function fieldHtml(question, value, readOnly) {
+  function fieldHtml(question, value, readOnly, isPreview) {
     const id = `q-${question.id}`;
     const disabled = readOnly ? 'disabled' : '';
     switch (question.type) {
@@ -118,8 +126,26 @@
         return `<div class="preview-rating-row" id="${id}">${buttons}</div>`;
       }
       case 'file_upload':
-      case 'image_upload':
-        return `<p class="field-hint">File upload isn't available in preview mode -- it will be available on the live respondent page.</p>`;
+      case 'image_upload': {
+        // Only the admin builder's Preview modal passes isPreview: true -- everywhere
+        // else (the live respondent page) renders a real upload control instead,
+        // wired up via config.onFileUpload in renderQuestionnaireRunner() below.
+        if (isPreview) {
+          return `<p class="field-hint">File upload isn't available in preview mode -- it will be available on the live respondent page.</p>`;
+        }
+        const currentName = value?.fileId ? escapeHtml(value.originalName || 'Uploaded file') : '';
+        // Client-side hint only -- mirrors lib/questionnaire-validation.js's
+        // allowedMimeTypesFor(), which is the actual enforcement point server-side.
+        const accept = question.type === 'image_upload' ? 'image/*' : 'image/*,.pdf,.doc,.docx,.txt';
+        return `
+          <div class="file-upload-field">
+            <label class="button button-secondary file-upload-button" for="${id}">${currentName ? 'Replace file' : 'Choose file'}</label>
+            <input type="file" class="sr-only" id="${id}" accept="${accept}" data-file-field ${disabled}>
+            <span class="file-upload-name" data-file-name>${currentName}</span>
+            <p class="file-upload-status" data-file-status hidden></p>
+          </div>
+        `;
+      }
       default:
         return '';
     }
@@ -160,6 +186,12 @@
   // Back/Next, and required-field validation. `config`:
   //   answers, currentSectionId: initial state
   //   readOnly: render fields disabled (used nowhere yet, reserved for read-only review)
+  //   isPreview: true only in the admin builder's Preview modal -- shows a "not
+  //     available in preview" message for file_upload/image_upload instead of a real
+  //     upload control
+  //   onFileUpload(file, question) -- required whenever a file_upload/image_upload
+  //     question can be visible and isPreview isn't set; must return a promise
+  //     resolving to { fileId, originalName, size, url }
   //   onAnswerChange(answers, completionPercentage)
   //   onSectionChange(sectionId)
   //   onSubmit(answers) -- called only after required-field validation passes on the
@@ -203,7 +235,14 @@
 
     function syncSection(questionsList) {
       questionsList.forEach(question => {
-        if (LAYOUT_TYPES.includes(question.type)) return;
+        // File questions are skipped here, not just left with no readFieldValue case:
+        // this function re-reads every question in the section on every keystroke, and
+        // a file answer is set asynchronously by the upload handler (see
+        // container.querySelectorAll('[data-file-field]') below), not by reading the
+        // DOM synchronously -- reading it here would overwrite an already-uploaded
+        // file's answer back to null the next time the respondent edits any other
+        // field in the same section.
+        if (LAYOUT_TYPES.includes(question.type) || FILE_TYPES.includes(question.type)) return;
         const value = readFieldValue(question, container);
         answers = { ...answers, [question.id]: value };
       });
@@ -237,7 +276,7 @@
           <div class="preview-question" data-question-id="${question.id}" ${hiddenAttr}>
             <label>${escapeHtml(question.label)}${question.required ? ' *' : ''}</label>
             ${question.helperText ? `<p class="field-hint">${escapeHtml(question.helperText)}</p>` : ''}
-            ${fieldHtml(question, answers[question.id], Boolean(config.readOnly))}
+            ${fieldHtml(question, answers[question.id], Boolean(config.readOnly), Boolean(config.isPreview))}
             <p class="preview-error hidden" data-error-for="${question.id}"></p>
           </div>
         `;
@@ -260,6 +299,44 @@
         el.addEventListener('input', () => syncSection(allQuestions));
         el.addEventListener('change', () => syncSection(allQuestions));
       });
+      // File inputs are handled separately from the [data-answer-field] wiring above:
+      // the answer isn't available synchronously (it comes back from
+      // config.onFileUpload, an async network call), so it's written into `answers`
+      // directly here rather than read back off the DOM by readFieldValue().
+      container.querySelectorAll('[data-file-field]').forEach(input => {
+        input.addEventListener('change', async () => {
+          const file = input.files[0];
+          if (!file) return;
+          const questionId = input.closest('.preview-question')?.dataset.questionId;
+          const question = allQuestions.find(q => q.id === questionId);
+          const wrapper = input.closest('.file-upload-field');
+          const nameEl = wrapper.querySelector('[data-file-name]');
+          const statusEl = wrapper.querySelector('[data-file-status]');
+          if (!question) return;
+
+          input.disabled = true;
+          statusEl.hidden = false;
+          statusEl.classList.remove('is-error');
+          statusEl.textContent = 'Uploading…';
+          try {
+            const result = await config.onFileUpload?.(file, question);
+            if (!result?.fileId) throw new Error('File upload is not available.');
+            answers = { ...answers, [question.id]: result };
+            nameEl.textContent = result.originalName || 'Uploaded file';
+            wrapper.querySelector('.file-upload-button').textContent = 'Replace file';
+            statusEl.hidden = true;
+            config.onAnswerChange?.(answers, computeCompletionPercentage(sections, answers));
+            refreshVisibility(allQuestions);
+          } catch (error) {
+            statusEl.classList.add('is-error');
+            statusEl.textContent = error.message || 'The file could not be uploaded.';
+          } finally {
+            input.disabled = false;
+            input.value = '';
+          }
+        });
+      });
+
       container.querySelectorAll('.preview-rating-option').forEach(button => {
         button.addEventListener('click', () => {
           const questionId = button.closest('.preview-question').dataset.questionId;

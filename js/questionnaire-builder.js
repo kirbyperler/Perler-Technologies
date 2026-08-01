@@ -653,6 +653,7 @@
     openModalWithNode('Preview', 'preview-modal-card', { wide: true });
     const body = document.getElementById('preview-modal-body');
     R().renderQuestionnaireRunner(body, previewDoc, {
+      isPreview: true,
       submitLabel: 'Submit (Preview)',
       onSubmit: () => { body.innerHTML = '<p class="empty-state-inline">This is a preview -- no response was saved.</p>'; }
     });
