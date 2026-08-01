@@ -10,6 +10,23 @@
   border: 0;
 }
 
+/* ---------- Sticky footer ----------
+   This page never loaded css/pay.css's .pay-section min-height rule, so the footer
+   only ever sat directly under the content -- fine when a questionnaire's fields fill
+   the viewport, but the short "Submitted" confirmation left it floating partway down
+   the page instead of pinned to the bottom. Flex column on body + flex:1 on main is
+   the standard sticky-footer layout: main grows to fill leftover viewport height when
+   content is short, and simply lets the footer flow below when content overflows it. */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+#main-content {
+  flex: 1 0 auto;
+}
+
 /* ---------- Questionnaire card shell (mirrors css/pay.css's .invoice-card) ---------- */
 
 .questionnaire-card {
@@ -261,7 +278,13 @@ textarea.preview-input {
   gap: 12px;
 }
 
-.file-upload-button {
+.file-upload-field .file-upload-button {
+  /* Root cause: .preview-question label { display: block; ... } (higher specificity
+     than .button alone) was overriding .button's inline-flex centering on this
+     <label>-based button, left-aligning its text at the top instead of centering it. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
