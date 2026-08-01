@@ -466,6 +466,90 @@
     </form>
   </div>
 
+  <div class="hidden" id="edit-invoice-card">
+    <form class="admin-form" id="edit-invoice-form" onsubmit="submitEditInvoiceForm(event)">
+      <input type="hidden" name="id">
+      <div class="form-grid two-column">
+        <div class="field-group">
+          <label for="edit-invoice-clientName">Client name <span aria-hidden="true">*</span></label>
+          <input id="edit-invoice-clientName" name="clientName" type="text" required maxlength="200">
+          <small class="field-error" data-error-for="clientName"></small>
+        </div>
+        <div class="field-group">
+          <label for="edit-invoice-clientEmail">Client email <span aria-hidden="true">*</span></label>
+          <input id="edit-invoice-clientEmail" name="clientEmail" type="email" required maxlength="200">
+          <small class="field-error" data-error-for="clientEmail"></small>
+        </div>
+        <div class="field-group">
+          <label for="edit-invoice-businessName">Business name <span class="optional">Optional</span></label>
+          <input id="edit-invoice-businessName" name="businessName" type="text" maxlength="200">
+        </div>
+        <div class="field-group">
+          <label for="edit-invoice-projectName">Project name <span aria-hidden="true">*</span></label>
+          <input id="edit-invoice-projectName" name="projectName" type="text" required maxlength="200">
+          <small class="field-error" data-error-for="projectName"></small>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="edit-invoice-description">Description <span aria-hidden="true">*</span></label>
+        <textarea id="edit-invoice-description" name="description" rows="4" required maxlength="2000"></textarea>
+        <small class="field-error" data-error-for="description"></small>
+      </div>
+
+      <div class="form-grid two-column">
+        <div class="field-group">
+          <label for="edit-invoice-amount">Amount (USD) <span aria-hidden="true">*</span></label>
+          <input id="edit-invoice-amount" name="amount" type="text" inputmode="decimal" required maxlength="20">
+          <small class="field-error" data-error-for="amount"></small>
+        </div>
+        <div class="field-group">
+          <label for="edit-invoice-paymentType">Payment type <span aria-hidden="true">*</span></label>
+          <div class="select-wrap">
+            <select id="edit-invoice-paymentType" name="paymentType" required>
+              <option value="Deposit">Deposit</option>
+              <option value="Milestone">Milestone</option>
+              <option value="Final payment">Final payment</option>
+              <option value="Hosting">Hosting</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <small class="field-error" data-error-for="paymentType"></small>
+        </div>
+      </div>
+
+      <div class="form-grid two-column">
+        <div class="field-group">
+          <label for="edit-invoice-dueDate">Due date <span aria-hidden="true">*</span></label>
+          <input id="edit-invoice-dueDate" name="dueDate" type="date" required>
+          <small class="field-error" data-error-for="dueDate"></small>
+        </div>
+        <div class="field-group">
+          <label for="edit-invoice-status">Status <span aria-hidden="true">*</span></label>
+          <div class="select-wrap">
+            <select id="edit-invoice-status" name="status" required>
+              <option value="Draft">Draft</option>
+              <option value="Pending">Pending</option>
+              <option value="Paid">Paid</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="edit-invoice-internalNotes">Internal notes <span class="optional">Optional, admin-only</span></label>
+        <textarea id="edit-invoice-internalNotes" name="internalNotes" rows="3" maxlength="5000"></textarea>
+      </div>
+
+      <div class="form-status" id="edit-invoice-form-status" role="status" aria-live="polite"></div>
+      <div class="form-actions">
+        <button class="button button-primary full" type="submit" id="edit-invoice-submit">Save changes</button>
+      </div>
+    </form>
+  </div>
+
   <div class="hidden" id="create-from-template-card">
     <form class="admin-form" id="create-from-template-form" onsubmit="submitCreateFromTemplate(event)">
       <div class="field-group" id="cft-template-group">

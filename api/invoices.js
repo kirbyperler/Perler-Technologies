@@ -5,6 +5,7 @@ const { requireAdmin } = require('../lib/auth');
 const stripe = require('../lib/stripe');
 const {
   PAYMENT_TYPES,
+  INVOICE_STATUSES,
   clean,
   isValidEmail,
   isAllowedCurrency,
@@ -12,6 +13,10 @@ const {
   parseDueDate,
   formatCentsAsDollars
 } = require('../lib/validation');
+
+// "Overdue" is derived (see effectiveStatus() below), never stored -- so it is never a
+// valid value to *set* a status to, only ever a value the server reports back.
+const EDITABLE_STATUSES = INVOICE_STATUSES.filter(status => status !== 'Overdue');
 
 const SORT_OPTIONS = {
   newest: { createdAt: -1 },
@@ -260,6 +265,105 @@ async function create(req, res, db) {
   return res.status(201).json({ invoice: toDetail(inserted, now) });
 }
 
+// Partial update, same convention as api/clients.js's update(): only fields actually
+// present in the body are validated and written, so the admin edit form can always
+// submit its full field set without needing special "unchanged" sentinel values.
+// Scoped to a single invoice by _id throughout -- editing one invoice can never touch
+// another's document.
+async function update(req, res, db) {
+  if (!allowMethods(req, res, ['POST'])) return;
+  const body = jsonBody(req);
+  const id = toObjectId(body.id);
+  if (!id) return res.status(400).json({ error: 'A valid invoice ID is required.' });
+
+  const existing = await db.collection('invoices').findOne({ _id: id });
+  if (!existing) return res.status(404).json({ error: 'Invoice not found.' });
+
+  const updates = { updatedAt: new Date() };
+
+  if (Object.prototype.hasOwnProperty.call(body, 'clientName')) {
+    const clientName = clean(body.clientName, 200);
+    if (!clientName) return res.status(400).json({ error: 'Client name is required.' });
+    updates.clientName = clientName;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'clientEmail')) {
+    const clientEmail = clean(body.clientEmail, 200).toLowerCase();
+    if (!clientEmail || !isValidEmail(clientEmail)) return res.status(400).json({ error: 'A valid client email is required.' });
+    updates.clientEmail = clientEmail;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'businessName')) updates.businessName = clean(body.businessName, 200);
+  if (Object.prototype.hasOwnProperty.call(body, 'projectName')) {
+    const projectName = clean(body.projectName, 200);
+    if (!projectName) return res.status(400).json({ error: 'Project name is required.' });
+    updates.projectName = projectName;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'description')) {
+    const description = clean(body.description, 2000);
+    if (!description) return res.status(400).json({ error: 'Description is required.' });
+    updates.description = description;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'paymentType')) {
+    const paymentType = clean(body.paymentType, 60);
+    if (!PAYMENT_TYPES.includes(paymentType)) return res.status(400).json({ error: 'Please select a valid payment type.' });
+    updates.paymentType = paymentType;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'amount')) {
+    const amount = parseAmountToCents(body.amount);
+    if (!amount) return res.status(400).json({ error: 'Amount must be a valid dollar value greater than zero.' });
+    updates.amount = amount;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'dueDate')) {
+    const dueDate = parseDueDate(body.dueDate);
+    if (!dueDate) return res.status(400).json({ error: 'A valid due date is required.' });
+    updates.dueDate = dueDate;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'internalNotes')) updates.internalNotes = clean(body.internalNotes, 5000);
+
+  // paidAt/cancelledAt are otherwise only ever set by the Stripe webhook (see
+  // api/stripe-webhook.js). Setting them here too, only on the transition *into* that
+  // status, keeps a manual admin correction consistent with that same bookkeeping --
+  // and moving a status back off Paid/Cancelled never clears a timestamp that was
+  // already recorded, so real payment history is never erased by an edit.
+  if (Object.prototype.hasOwnProperty.call(body, 'status')) {
+    const status = clean(body.status, 30);
+    if (!EDITABLE_STATUSES.includes(status)) return res.status(400).json({ error: 'Please select a valid status.' });
+    updates.status = status;
+    if (status === 'Paid' && existing.status !== 'Paid') updates.paidAt = new Date();
+    if (status === 'Cancelled' && existing.status !== 'Cancelled') updates.cancelledAt = new Date();
+  }
+
+  const result = await db.collection('invoices').findOneAndUpdate({ _id: id }, { $set: updates }, { returnDocument: 'after' });
+  const invoiceDoc = result?.value || result;
+  if (!invoiceDoc) return res.status(404).json({ error: 'Invoice not found.' });
+  return res.status(200).json({ invoice: toDetail(invoiceDoc, new Date()) });
+}
+
+// Deletion is permanent for everything except Paid invoices, which are refused
+// outright (see del() below) rather than soft-deleted. A soft-delete/archive field was
+// considered, but it would mean touching every existing invoices query (dashboard,
+// list, get) to filter it out -- for a field only Paid invoices would ever need,
+// simply blocking the one dangerous case is the smaller, equally-safe change: a Paid
+// invoice is a record of completed revenue (and carries the Stripe payment reference),
+// so it must never disappear. Draft/Pending/Overdue/Cancelled invoices never
+// represented completed revenue and can be removed outright.
+async function del(req, res, db) {
+  if (!allowMethods(req, res, ['POST'])) return;
+  const body = jsonBody(req);
+  const id = toObjectId(body.id);
+  if (!id) return res.status(400).json({ error: 'A valid invoice ID is required.' });
+
+  const existing = await db.collection('invoices').findOne({ _id: id });
+  if (!existing) return res.status(404).json({ error: 'Invoice not found.' });
+
+  if (existing.status === 'Paid') {
+    return res.status(409).json({ error: 'Paid invoices cannot be deleted, to preserve accounting history. Cancel it instead if it was created in error.' });
+  }
+
+  const result = await db.collection('invoices').deleteOne({ _id: id });
+  if (!result.deletedCount) return res.status(404).json({ error: 'Invoice not found.' });
+  return res.status(200).json({ success: true });
+}
+
 // Reuses an existing Checkout Session for this invoice if Stripe still considers it
 // open and it was created for this exact invoice. Returns null if there's nothing
 // reusable, in which case the caller should create a fresh session.
@@ -416,6 +520,8 @@ module.exports = async function handler(req, res) {
     if (route === 'list') return list(req, res, db);
     if (route === 'get') return get(req, res, db);
     if (route === 'create') return create(req, res, db);
+    if (route === 'update') return update(req, res, db);
+    if (route === 'delete') return del(req, res, db);
     return res.status(404).json({ error: 'Invoice action not found.' });
   } catch (error) {
     console.error('Invoices API error:', error);

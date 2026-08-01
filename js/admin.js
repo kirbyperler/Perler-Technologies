@@ -322,6 +322,8 @@
           <div class="row-actions">
             <a href="#/invoices/${invoice.id}">View</a>
             <button type="button" class="copy-link-button" data-id="${invoice.id}">Copy link</button>
+            <button type="button" class="edit-invoice-button" data-id="${invoice.id}">Edit</button>
+            <button type="button" class="delete-invoice-button" data-id="${invoice.id}">Delete</button>
           </div>
         </td>
       </tr>
@@ -352,6 +354,118 @@
         }
       });
     });
+    container.querySelectorAll('.edit-invoice-button').forEach(button => {
+      button.addEventListener('click', () => openEditInvoiceForm(button.dataset.id, button));
+    });
+    container.querySelectorAll('.delete-invoice-button').forEach(button => {
+      button.addEventListener('click', () => confirmDeleteInvoice(button.dataset.id));
+    });
+  }
+
+  // Whichever invoice view is currently on screen (list, detail, or the dashboard's
+  // "Recent invoices" table) re-fetches its own data after an edit/delete -- nothing
+  // is cached client-side, so this is always a fresh read from the database.
+  function refreshInvoiceViews() {
+    const route = currentRoute();
+    if (route.name === 'invoices') loadInvoices();
+    else if (route.name === 'detail') loadInvoiceDetail(route.id);
+    else if (route.name === 'dashboard') loadDashboard();
+  }
+
+  // Shared by both the invoice-table row action and the detail view's Edit button.
+  // Fetches the full invoice first (the list/table rows only carry a trimmed
+  // projection) so the modal always opens already populated, instead of flashing an
+  // empty form and filling in a beat later.
+  async function openEditInvoiceForm(id, buttonEl) {
+    const originalLabel = buttonEl?.textContent;
+    if (buttonEl) { buttonEl.disabled = true; buttonEl.textContent = 'Loading…'; }
+
+    try {
+      const data = await api(`/api/invoices?action=get&id=${encodeURIComponent(id)}`);
+      const invoice = data.invoice;
+
+      const form = document.getElementById('edit-invoice-form');
+      form.reset();
+      form.querySelectorAll('.field-group').forEach(group => group.classList.remove('has-error'));
+      form.querySelectorAll('.field-error').forEach(el => { el.textContent = ''; });
+      document.getElementById('edit-invoice-form-status').textContent = '';
+
+      form.elements.id.value = invoice.id;
+      form.elements.clientName.value = invoice.clientName || '';
+      form.elements.clientEmail.value = invoice.clientEmail || '';
+      form.elements.businessName.value = invoice.businessName || '';
+      form.elements.projectName.value = invoice.projectName || '';
+      form.elements.description.value = invoice.description || '';
+      form.elements.amount.value = (Number(invoice.amount || 0) / 100).toFixed(2);
+      form.elements.paymentType.value = invoice.paymentType || '';
+      form.elements.dueDate.value = invoice.dueDate ? new Date(invoice.dueDate).toISOString().slice(0, 10) : '';
+      // "Overdue" is derived, never stored (see api/invoices.js effectiveStatus()) and
+      // isn't one of the Status select's options -- it maps back to the invoice's real
+      // stored status, Pending, so re-saving without touching Status is a no-op.
+      form.elements.status.value = invoice.status === 'Overdue' ? 'Pending' : invoice.status;
+      form.elements.internalNotes.value = invoice.internalNotes || '';
+
+      openModalWithNode('Edit Invoice', 'edit-invoice-card');
+    } catch (error) {
+      showToast(error.message, 'error');
+    } finally {
+      if (buttonEl) { buttonEl.disabled = false; buttonEl.textContent = originalLabel; }
+    }
+  }
+
+  let isSavingInvoiceEdit = false;
+
+  window.submitEditInvoiceForm = async function submitEditInvoiceForm(event) {
+    event.preventDefault();
+    if (isSavingInvoiceEdit) return;
+
+    const form = event.target;
+    if (!validateCreateForm(form)) return;
+
+    const statusEl = document.getElementById('edit-invoice-form-status');
+    statusEl.textContent = '';
+    const submitButton = document.getElementById('edit-invoice-submit');
+    const originalLabel = submitButton.textContent;
+
+    isSavingInvoiceEdit = true;
+    submitButton.disabled = true;
+    submitButton.textContent = 'Saving…';
+
+    const payload = Object.fromEntries(new FormData(form).entries());
+
+    try {
+      await api('/api/invoices?action=update', { method: 'POST', body: JSON.stringify(payload) });
+      closeModal();
+      showToast('Invoice updated.');
+      refreshInvoiceViews();
+    } catch (error) {
+      statusEl.textContent = error.message;
+    } finally {
+      isSavingInvoiceEdit = false;
+      submitButton.disabled = false;
+      submitButton.textContent = originalLabel;
+    }
+  };
+
+  function confirmDeleteInvoice(id) {
+    requestConfirmation('Delete this invoice? This cannot be undone.', async () => {
+      try {
+        await api('/api/invoices?action=delete', { method: 'POST', body: JSON.stringify({ id }) });
+        closeModal();
+        showToast('Invoice deleted.');
+        const route = currentRoute();
+        if (route.name === 'detail' && route.id === id) {
+          // The detail view for this exact invoice no longer has anything to show --
+          // hashchange's own handler re-renders into the list, so don't also call
+          // refreshInvoiceViews() here (that would just double-load).
+          window.location.hash = '#/invoices';
+        } else {
+          refreshInvoiceViews();
+        }
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }, 'Delete');
   }
 
   async function loadInvoices() {
@@ -497,7 +611,11 @@
       panel.innerHTML = `
         <div class="panel-heading">
           <h2>${escapeHtml(invoice.invoiceNumber)}</h2>
-          ${statusBadge(invoice.status)}
+          <div class="row-actions">
+            ${statusBadge(invoice.status)}
+            <button class="button button-secondary" type="button" id="detail-edit-invoice">Edit</button>
+            <button class="button button-secondary" type="button" id="detail-delete-invoice">Delete</button>
+          </div>
         </div>
         <div class="detail-grid">
           <div class="detail-field"><span>Client name</span><p>${escapeHtml(invoice.clientName)}</p></div>
@@ -521,6 +639,12 @@
 
       document.getElementById('detail-copy-link')?.addEventListener('click', event => {
         copyToClipboard(invoice.paymentLink, event.currentTarget);
+      });
+      document.getElementById('detail-edit-invoice')?.addEventListener('click', event => {
+        openEditInvoiceForm(invoice.id, event.currentTarget);
+      });
+      document.getElementById('detail-delete-invoice')?.addEventListener('click', () => {
+        confirmDeleteInvoice(invoice.id);
       });
     } catch (error) {
       panel.innerHTML = `<div class="state-message is-error">${escapeHtml(error.message)}</div>`;
