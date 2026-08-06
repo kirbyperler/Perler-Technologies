@@ -67,9 +67,9 @@ async function session(req, res) {
 module.exports = async function handler(req, res) {
   try {
     const route = action(req);
-    if (route === 'login') return login(req, res);
-    if (route === 'logout') return logout(req, res);
-    if (route === 'session') return session(req, res);
+    if (route === 'login') return await login(req, res);
+    if (route === 'logout') return await logout(req, res);
+    if (route === 'session') return await session(req, res);
     return res.status(404).json({ error: 'Authentication action not found.' });
   } catch (error) {
     console.error('Auth API error:', error);
